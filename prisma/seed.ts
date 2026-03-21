@@ -1,11 +1,19 @@
-import prisma from '../lib/prisma';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 async function main() {
+  // Clear existing data
+  await prisma.adImage.deleteMany();
+  await prisma.ad.deleteMany();
+  await prisma.user.deleteMany();
+
   const user = await prisma.user.create({
     data: {
       email: 'admin@uk-ads.co.uk',
       name: 'UK Admin',
       password: 'securepassword',
+      role: 'ADMIN',
     },
   });
 
@@ -17,7 +25,12 @@ async function main() {
       location: 'London',
       category: 'Cars & Vehicles',
       authorId: user.id,
-      imageUrl: 'https://images.unsplash.com/photo-1613944321768-46d29944a14f?q=80&w=800&auto=format&fit=crop',
+      status: 'APPROVED',
+      images: {
+        create: [
+          { url: 'https://images.unsplash.com/photo-1613944321768-46d29944a14f?q=80&w=800&auto=format&fit=crop' }
+        ]
+      }
     },
     {
       title: 'iPhone 15 Pro Max 256GB - Blue Titanium',
@@ -26,7 +39,12 @@ async function main() {
       location: 'Manchester',
       category: 'Electronics',
       authorId: user.id,
-      imageUrl: 'https://images.unsplash.com/photo-1696446701796-da61225697cc?q=80&w=800&auto=format&fit=crop',
+      status: 'APPROVED',
+      images: {
+        create: [
+          { url: 'https://images.unsplash.com/photo-1696446701796-da61225697cc?q=80&w=800&auto=format&fit=crop' }
+        ]
+      }
     },
     {
       title: 'Golden Retriever Puppies',
@@ -35,7 +53,12 @@ async function main() {
       location: 'Birmingham',
       category: 'Pets',
       authorId: user.id,
-      imageUrl: 'https://images.unsplash.com/photo-1552053831-71594a27632d?q=80&w=800&auto=format&fit=crop',
+      status: 'APPROVED',
+      images: {
+        create: [
+          { url: 'https://images.unsplash.com/photo-1552053831-71594a27632d?q=80&w=800&auto=format&fit=crop' }
+        ]
+      }
     },
   ];
 

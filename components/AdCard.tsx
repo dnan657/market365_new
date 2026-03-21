@@ -9,16 +9,6 @@ interface AdCardProps {
   imageUrl?: string | null;
   category: string;
   createdAt: string;
-}
-
-interface AdCardProps {
-  id: number;
-  title: string;
-  price: number;
-  location: string;
-  imageUrl?: string | null;
-  category: string;
-  createdAt: string;
   isPromoted?: boolean;
 }
 
@@ -48,17 +38,17 @@ export function AdCard({ id, title, price, location, imageUrl, category, created
         </div>
       </div>
       <div className="p-4 space-y-2">
-        <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 line-clamp-2 min-h-[3rem]">
+        <h3 className="font-bold text-gray-900 group-hover:text-blue-600 line-clamp-2 min-h-[3rem] tracking-tight">
           {title}
         </h3>
         <div className="flex items-baseline gap-1">
-          <span className="text-xl font-extrabold text-blue-800">£{price.toLocaleString()}</span>
+          <span className="text-xl font-black text-blue-800">£{price.toLocaleString()}</span>
         </div>
-        <div className="flex items-center gap-1 text-xs text-gray-500 pt-2 border-t">
-          <MapPin className="w-3 h-3" />
+        <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400 pt-2 border-t uppercase tracking-widest">
+          <MapPin className="w-3 h-3 text-blue-500" />
           <span className="truncate">{location}</span>
         </div>
-        <div className="flex items-center gap-1 text-[10px] text-gray-400">
+        <div className="flex items-center gap-1 text-[10px] font-medium text-gray-400">
           <Clock className="w-3 h-3" />
           <span>{new Date(createdAt).toLocaleDateString('en-GB')}</span>
         </div>

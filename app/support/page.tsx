@@ -2,13 +2,24 @@
 
 import { useState } from 'react';
 import { Mail, MessageSquare, Send, CheckCircle2 } from 'lucide-react';
+import { createTicketAction } from './actions';
 
 export default function SupportPage() {
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setSubmitted(true);
+    setIsSubmitting(true);
+    const formData = new FormData(e.currentTarget);
+    try {
+      await createTicketAction(formData);
+      setSubmitted(true);
+    } catch (err) {
+      console.error('Failed to submit ticket', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (submitted) {
@@ -48,22 +59,22 @@ export default function SupportPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Your Name</label>
-              <input type="text" required placeholder="Full Name" className="w-full border rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500" />
+              <input name="name" type="text" required placeholder="Full Name" className="w-full border rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Email Address</label>
-              <input type="email" required placeholder="name@example.co.uk" className="w-full border rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500" />
+              <input name="email" type="email" required placeholder="name@example.co.uk" className="w-full border rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Subject</label>
-              <input type="text" required placeholder="What do you need help with?" className="w-full border rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500" />
+              <input name="subject" type="text" required placeholder="What do you need help with?" className="w-full border rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">Message</label>
-              <textarea rows={5} required placeholder="Describe your issue in detail..." className="w-full border rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500" />
+              <textarea name="message" rows={5} required placeholder="Describe your issue in detail..." className="w-full border rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
-            <button className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-200">
-              <Send className="w-5 h-5" /> Submit Ticket
+            <button disabled={isSubmitting} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 disabled:bg-gray-400">
+              <Send className="w-5 h-5" /> {isSubmitting ? 'Submitting...' : 'Submit Ticket'}
             </button>
           </form>
         </div>
