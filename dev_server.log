@@ -1,0 +1,35 @@
+
+> app@1.0.0 dev
+> next dev
+
+   ▲ Next.js 15.5.14
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.2:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1844ms
+ ○ Compiling / ...
+ ✓ Compiled / in 7.6s (635 modules)
+ GET / 200 in 9219ms
+ ○ Compiling /ads/create ...
+ ✓ Compiled /ads/create in 827ms (642 modules)
+ GET /ads/create 200 in 1174ms
+ GET /ads/create 200 in 80ms
+ ✓ Compiled in 329ms (642 modules)
+ GET / 200 in 414ms
+ GET /ads/create 200 in 66ms
+ ✓ Compiled /ads/[id] in 463ms (639 modules)
+ GET /ads/1 200 in 1909ms
+ POST /ads/create 303 in 1975ms
+ ✓ Compiled in 1607ms (648 modules)
+ ✓ Compiled in 174ms (257 modules)
+ ✓ Compiled in 155ms (257 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 675ms (416 modules)
+ GET / 200 in 1420ms
+ GET /ads/create 200 in 80ms
+ ✓ Compiled /ads/[id] in 244ms (426 modules)
+ GET /ads/2 200 in 521ms
+ POST /ads/create 303 in 601ms
+ GET /ads/2 200 in 101ms
