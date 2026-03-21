@@ -3,77 +3,78 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  // Clear existing data
+  await prisma.adAttribute.deleteMany();
+  await prisma.categoryField.deleteMany();
+  await prisma.subcategory.deleteMany();
+  await prisma.category.deleteMany();
   await prisma.adImage.deleteMany();
   await prisma.ad.deleteMany();
   await prisma.user.deleteMany();
 
   const user = await prisma.user.create({
-    data: {
-      email: 'admin@uk-ads.co.uk',
-      name: 'UK Admin',
-      password: 'securepassword',
-      role: 'ADMIN',
-    },
+    data: { email: 'admin@uk-ads.co.uk', name: 'UK Admin', password: 'securepassword', role: 'SUPERADMIN' },
   });
 
-  const ads = [
-    {
+  // Create Categories
+  const cars = await prisma.category.create({ data: { name: 'Cars & Vehicles', slug: 'cars' } });
+  const property = await prisma.category.create({ data: { name: 'Property', slug: 'property' } });
+
+  // Subcategories & Fields
+  const usedCars = await prisma.subcategory.create({
+    data: {
+      name: 'Used Cars',
+      slug: 'used-cars',
+      categoryId: cars.id,
+      fields: {
+        create: [
+          { name: 'Make', type: 'SELECT', options: JSON.stringify(['Ford', 'Volkswagen', 'BMW', 'Audi', 'Tesla']), required: true },
+          { name: 'Model', type: 'TEXT', required: true },
+          { name: 'Mileage', type: 'NUMBER', required: true },
+          { name: 'Fuel Type', type: 'SELECT', options: JSON.stringify(['Petrol', 'Diesel', 'Electric', 'Hybrid']) }
+        ]
+      }
+    }
+  });
+
+  const apartments = await prisma.subcategory.create({
+    data: {
+      name: 'Apartments for Rent',
+      slug: 'rent-apartments',
+      categoryId: property.id,
+      fields: {
+        create: [
+          { name: 'Bedrooms', type: 'NUMBER', required: true },
+          { name: 'Furnished', type: 'SELECT', options: JSON.stringify(['Yes', 'No', 'Part-furnished']) }
+        ]
+      }
+    }
+  });
+
+  // Sample Ad with Attributes
+  const carFieldMake = await prisma.categoryField.findFirst({ where: { name: 'Make', subcategoryId: usedCars.id } });
+  const carFieldMileage = await prisma.categoryField.findFirst({ where: { name: 'Mileage', subcategoryId: usedCars.id } });
+
+  await prisma.ad.create({
+    data: {
       title: '2021 Land Rover Defender 110',
       description: 'Excellent condition, low mileage, full service history. Local pickup in London.',
       price: 55000,
       location: 'London',
-      category: 'Cars & Vehicles',
+      categoryName: 'Cars & Vehicles',
+      subcategoryId: usedCars.id,
       authorId: user.id,
       status: 'APPROVED',
-      images: {
+      images: { create: [{ url: 'https://images.unsplash.com/photo-1613944321768-46d29944a14f?q=80&w=800&auto=format&fit=crop' }] },
+      attributes: {
         create: [
-          { url: 'https://images.unsplash.com/photo-1613944321768-46d29944a14f?q=80&w=800&auto=format&fit=crop' }
+          { fieldId: carFieldMake!.id, value: 'Land Rover' },
+          { fieldId: carFieldMileage!.id, value: '12000' }
         ]
       }
-    },
-    {
-      title: 'iPhone 15 Pro Max 256GB - Blue Titanium',
-      description: 'Brand new in box, unlocked to all UK networks. Warranty included.',
-      price: 950,
-      location: 'Manchester',
-      category: 'Electronics',
-      authorId: user.id,
-      status: 'APPROVED',
-      images: {
-        create: [
-          { url: 'https://images.unsplash.com/photo-1696446701796-da61225697cc?q=80&w=800&auto=format&fit=crop' }
-        ]
-      }
-    },
-    {
-      title: 'Golden Retriever Puppies',
-      description: 'KC registered, microchipped and vaccinated. Available for their forever homes in Birmingham.',
-      price: 1200,
-      location: 'Birmingham',
-      category: 'Pets',
-      authorId: user.id,
-      status: 'APPROVED',
-      images: {
-        create: [
-          { url: 'https://images.unsplash.com/photo-1552053831-71594a27632d?q=80&w=800&auto=format&fit=crop' }
-        ]
-      }
-    },
-  ];
+    }
+  });
 
-  for (const ad of ads) {
-    await prisma.ad.create({ data: ad });
-  }
-
-  console.log('Seed completed successfully!');
+  console.log('Advanced Seed completed!');
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+main().catch(console.error).finally(() => prisma.$disconnect());

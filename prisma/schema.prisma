@@ -64,23 +64,63 @@ model VerificationToken {
 }
 
 model Ad {
-  id          Int          @id @default(autoincrement())
-  title       String
-  description String
-  price       Float
-  location    String
-  latitude    Float?
-  longitude   Float?
-  postcode    String?
-  category    String
-  images      AdImage[]
-  status      String       @default("PENDING") // PENDING, APPROVED, REJECTED, FLAGGED
-  isPromoted  Boolean      @default(false)
-  authorId    Int
-  author      User         @relation(fields: [authorId], references: [id])
-  promotions  PromotedAd[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id            Int           @id @default(autoincrement())
+  title         String
+  description   String
+  price         Float
+  location      String
+  latitude      Float?
+  longitude     Float?
+  postcode      String?
+  categoryName  String
+  subcategory   Subcategory   @relation(fields: [subcategoryId], references: [id])
+  subcategoryId Int
+  attributes    AdAttribute[]
+  images        AdImage[]
+  status        String        @default("PENDING") // PENDING, APPROVED, REJECTED, FLAGGED
+  isPromoted    Boolean       @default(false)
+  authorId      Int
+  author        User          @relation(fields: [authorId], references: [id])
+  promotions    PromotedAd[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model AdAttribute {
+  id      Int           @id @default(autoincrement())
+  field   CategoryField @relation(fields: [fieldId], references: [id])
+  fieldId Int
+  value   String
+  ad      Ad            @relation(fields: [adId], references: [id], onDelete: Cascade)
+  adId    Int
+}
+
+model CategoryField {
+  id            Int           @id @default(autoincrement())
+  name          String        // e.g. "Mileage", "Fuel Type", "Bedrooms"
+  type          String        // TEXT, NUMBER, SELECT
+  options       String?       // JSON string for select options
+  required      Boolean       @default(false)
+  subcategory   Subcategory   @relation(fields: [subcategoryId], references: [id])
+  subcategoryId Int
+  adAttributes  AdAttribute[]
+}
+
+model Subcategory {
+  id         Int             @id @default(autoincrement())
+  name       String
+  slug       String          @unique
+  category   Category        @relation(fields: [categoryId], references: [id])
+  categoryId Int
+  fields     CategoryField[]
+  ads        Ad[]
+}
+
+model Category {
+  id            Int           @id @default(autoincrement())
+  name          String        @unique
+  slug          String        @unique
+  subcategories Subcategory[]
 }
 
 model AdImage {
@@ -126,12 +166,6 @@ model PromotedAd {
   ad        Ad       @relation(fields: [adId], references: [id])
   startDate DateTime @default(now())
   endDate   DateTime
-}
-
-model Category {
-  id    Int    @id @default(autoincrement())
-  name  String @unique
-  slug  String @unique
 }
 
 model Location {
