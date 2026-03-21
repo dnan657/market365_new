@@ -8,26 +8,81 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String?
-  password  String
-  ads       Ad[]
-  createdAt DateTime @default(now())
+  id            Int            @id @default(autoincrement())
+  email         String         @unique
+  name          String?
+  password      String
+  role          String         @default("USER") // USER, ADMIN
+  ads           Ad[]
+  tickets       Ticket[]
+  transactions  Transaction[]
+  subscriptions Subscription[]
+  createdAt     DateTime       @default(now())
 }
 
 model Ad {
-  id          Int      @id @default(autoincrement())
+  id          Int          @id @default(autoincrement())
   title       String
   description String
   price       Float
   location    String
+  latitude    Float?
+  longitude   Float?
+  postcode    String?
   category    String
-  imageUrl    String?
+  images      AdImage[]
+  status      String       @default("PENDING") // PENDING, APPROVED, REJECTED, FLAGGED
+  isPromoted  Boolean      @default(false)
   authorId    Int
-  author      User     @relation(fields: [authorId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  author      User         @relation(fields: [authorId], references: [id])
+  promotions  PromotedAd[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model AdImage {
+  id    Int    @id @default(autoincrement())
+  url   String
+  adId  Int
+  ad    Ad     @relation(fields: [adId], references: [id], onDelete: Cascade)
+}
+
+model Ticket {
+  id        Int      @id @default(autoincrement())
+  subject   String
+  message   String
+  status    String   @default("OPEN") // OPEN, CLOSED, IN_PROGRESS
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Transaction {
+  id        Int      @id @default(autoincrement())
+  amount    Float
+  currency  String   @default("GBP")
+  status    String   @default("COMPLETED")
+  type      String   // PROMOTION, SUBSCRIPTION
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Subscription {
+  id        Int      @id @default(autoincrement())
+  planName  String   // BASIC, PREMIUM, BUSINESS
+  startDate DateTime @default(now())
+  endDate   DateTime
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model PromotedAd {
+  id        Int      @id @default(autoincrement())
+  adId      Int
+  ad        Ad       @relation(fields: [adId], references: [id])
+  startDate DateTime @default(now())
+  endDate   DateTime
 }
 
 model Category {
@@ -39,4 +94,11 @@ model Category {
 model Location {
   id   Int    @id @default(autoincrement())
   name String @unique
+}
+
+model AdminLog {
+  id        Int      @id @default(autoincrement())
+  action    String
+  details   String
+  createdAt DateTime @default(now())
 }

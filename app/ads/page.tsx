@@ -28,8 +28,10 @@ export default async function AdsPage({
         location ? { location: { contains: location } } : {},
         minPrice ? { price: { gte: minPrice } } : {},
         maxPrice ? { price: { lte: maxPrice } } : {},
+        { status: 'APPROVED' } // Only show approved ads to public
       ]
     },
+    include: { images: true },
     orderBy: { createdAt: 'desc' },
   });
 
@@ -112,7 +114,7 @@ export default async function AdsPage({
                 location={ad.location}
                 category={ad.category}
                 createdAt={ad.createdAt.toISOString()}
-                imageUrl={ad.imageUrl}
+                imageUrl={ad.images[0]?.url}
               />
             ))
           ) : (
