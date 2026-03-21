@@ -1,0 +1,213 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            Int
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       Int
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            Int            @id @default(autoincrement())
+  name          String?
+  email         String?        @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          String         @default("USER") // USER, MODERATOR, SUPERADMIN
+  accounts      Account[]
+  sessions      Session[]
+  ads           Ad[]
+  tickets       Ticket[]
+  transactions  Transaction[]
+  subscriptions Subscription[]
+  notifications Notification[]
+  sentMessages     Message[]   @relation("SentMessages")
+  receivedMessages Message[]   @relation("ReceivedMessages")
+  chats            Chat[]      @relation("UserChats")
+  createdAt     DateTime       @default(now())
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Ad {
+  id            Int           @id @default(autoincrement())
+  title         String
+  description   String
+  price         Float
+  location      String
+  latitude      Float?
+  longitude     Float?
+  postcode      String?
+  categoryName  String
+  subcategory   Subcategory   @relation(fields: [subcategoryId], references: [id])
+  subcategoryId Int
+  attributes    AdAttribute[]
+  images        AdImage[]
+  status        String        @default("PENDING") // PENDING, APPROVED, REJECTED, FLAGGED
+  isPromoted    Boolean       @default(false)
+  authorId      Int
+  author        User          @relation(fields: [authorId], references: [id])
+  promotions    PromotedAd[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model AdAttribute {
+  id      Int           @id @default(autoincrement())
+  field   CategoryField @relation(fields: [fieldId], references: [id])
+  fieldId Int
+  value   String
+  ad      Ad            @relation(fields: [adId], references: [id], onDelete: Cascade)
+  adId    Int
+}
+
+model CategoryField {
+  id            Int           @id @default(autoincrement())
+  name          String        // e.g. "Mileage", "Fuel Type", "Bedrooms"
+  type          String        // TEXT, NUMBER, SELECT
+  options       String?       // JSON string for select options
+  required      Boolean       @default(false)
+  subcategory   Subcategory   @relation(fields: [subcategoryId], references: [id])
+  subcategoryId Int
+  adAttributes  AdAttribute[]
+}
+
+model Subcategory {
+  id         Int             @id @default(autoincrement())
+  name       String
+  slug       String          @unique
+  category   Category        @relation(fields: [categoryId], references: [id])
+  categoryId Int
+  fields     CategoryField[]
+  ads        Ad[]
+}
+
+model Category {
+  id            Int           @id @default(autoincrement())
+  name          String        @unique
+  slug          String        @unique
+  subcategories Subcategory[]
+}
+
+model AdImage {
+  id    Int    @id @default(autoincrement())
+  url   String
+  adId  Int
+  ad    Ad     @relation(fields: [adId], references: [id], onDelete: Cascade)
+}
+
+model Ticket {
+  id        Int      @id @default(autoincrement())
+  subject   String
+  message   String
+  status    String   @default("OPEN") // OPEN, CLOSED, IN_PROGRESS
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Transaction {
+  id        Int      @id @default(autoincrement())
+  amount    Float
+  currency  String   @default("GBP")
+  status    String   @default("COMPLETED")
+  type      String   // PROMOTION, SUBSCRIPTION
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Subscription {
+  id        Int      @id @default(autoincrement())
+  planName  String   // BASIC, PREMIUM, BUSINESS
+  startDate DateTime @default(now())
+  endDate   DateTime
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model PromotedAd {
+  id        Int      @id @default(autoincrement())
+  adId      Int
+  ad        Ad       @relation(fields: [adId], references: [id])
+  startDate DateTime @default(now())
+  endDate   DateTime
+}
+
+model Location {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+}
+
+model AdminLog {
+  id        Int      @id @default(autoincrement())
+  action    String
+  details   String
+  createdAt DateTime @default(now())
+}
+
+model Chat {
+  id        String    @id @default(cuid())
+  users     User[]    @relation("UserChats")
+  messages  Message[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  senderId  Int
+  sender    User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiverId Int
+  receiver  User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  chatId    String
+  chat      Chat     @relation(fields: [chatId], references: [id])
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  message   String
+  type      String   // MESSAGE, SYSTEM, PROMOTION
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
