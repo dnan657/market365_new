@@ -2,6 +2,7 @@ import prisma from '@/lib/prisma';
 import { AdCard } from '@/components/AdCard';
 import { Search, MapPin, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
 import Link from 'next/link';
+import { GoogleAd } from '@/components/GoogleAd';
 
 export default async function AdsPage({
   searchParams,
@@ -89,15 +90,10 @@ export default async function AdsPage({
               ))}
             </div>
           </div>
-
-          <div className="space-y-4 pt-4 border-t border-gray-100">
-            <h3 className="font-black text-xs uppercase tracking-[0.2em] text-gray-400">Price Range (£)</h3>
-            <div className="flex gap-4">
-              <input type="number" placeholder="Min" className="w-full border-2 border-gray-100 rounded-xl p-3 text-sm font-bold outline-none focus:border-blue-500" />
-              <input type="number" placeholder="Max" className="w-full border-2 border-gray-100 rounded-xl p-3 text-sm font-bold outline-none focus:border-blue-500" />
-            </div>
-          </div>
         </div>
+
+        {/* Sidebar Ad Unit */}
+        <GoogleAd slot="5678901234" />
       </aside>
 
       {/* Main Results */}
@@ -124,18 +120,26 @@ export default async function AdsPage({
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
           {ads.length > 0 ? (
-            ads.map((ad) => (
-              <AdCard
-                key={ad.id}
-                id={ad.id}
-                title={ad.title}
-                price={ad.price}
-                location={ad.location}
-                category={ad.category}
-                createdAt={ad.createdAt.toISOString()}
-                imageUrl={ad.images[0]?.url}
-                isPromoted={ad.isPromoted}
-              />
+            ads.map((ad, index) => (
+              <>
+                <AdCard
+                  key={ad.id}
+                  id={ad.id}
+                  title={ad.title}
+                  price={ad.price}
+                  location={ad.location}
+                  category={ad.category}
+                  createdAt={ad.createdAt.toISOString()}
+                  imageUrl={ad.images[0]?.url}
+                  isPromoted={ad.isPromoted}
+                />
+                {/* Insert an ad every 6 results */}
+                {index === 5 && (
+                  <div className="col-span-full">
+                    <GoogleAd slot="4321098765" />
+                  </div>
+                )}
+              </>
             ))
           ) : (
             <div className="col-span-full py-32 text-center space-y-4 bg-white border-4 border-dashed rounded-[3rem]">

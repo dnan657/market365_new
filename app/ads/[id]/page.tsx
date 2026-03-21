@@ -3,6 +3,7 @@ import Link from 'next/link';
 import prisma from '@/lib/prisma';
 import { MapPin, Clock, User, Phone, Mail, Share2, Heart, Flag, ShieldCheck } from 'lucide-react';
 import AdMap from '@/components/AdMap';
+import { GoogleAd } from '@/components/GoogleAd';
 
 export default async function AdDetailPage({
   params,
@@ -107,6 +108,9 @@ export default async function AdDetailPage({
             </div>
           </div>
 
+          {/* AdSense Unit */}
+          <GoogleAd slot="1234567890" />
+
           <div className="space-y-4">
             <h2 className="text-2xl font-bold text-gray-900">Location Map</h2>
             <AdMap
@@ -119,7 +123,7 @@ export default async function AdDetailPage({
 
         {/* Right Column: Price & Contact */}
         <div className="space-y-6">
-          <div className="bg-white p-8 rounded-2xl shadow-sm border space-y-8 sticky top-8">
+          <div className="bg-white p-8 rounded-2xl shadow-sm border space-y-8 sticky top-24">
             <div className="space-y-1">
               <p className="text-gray-500 text-xs font-bold uppercase tracking-widest">Asking Price</p>
               <p className="text-5xl font-black text-blue-800">£{ad.price.toLocaleString()}</p>
@@ -148,6 +152,9 @@ export default async function AdDetailPage({
                 View all seller's ads
               </Link>
             </div>
+
+            {/* Sidebar Ad Unit */}
+            <GoogleAd slot="0987654321" format="fluid" />
           </div>
 
           <div className="bg-yellow-50 p-8 rounded-2xl border border-yellow-200 shadow-sm">
