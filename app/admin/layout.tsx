@@ -1,11 +1,16 @@
 import Link from 'next/link';
 import { LayoutDashboard, FileText, Settings, Users, MessageSquare } from 'lucide-react';
+import { protectAdminRoute } from '@/lib/auth';
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Simple check to see if the user has the is_admin cookie.
+  // This happens server-side, so the user never sees any of the children if unauthorized.
+  await protectAdminRoute();
+
   return (
     <div className="flex min-h-screen bg-gray-50 -mx-4 -my-8">
       <aside className="w-64 bg-white border-r h-screen sticky top-0">

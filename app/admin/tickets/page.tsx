@@ -1,6 +1,7 @@
 import prisma from '@/lib/prisma';
 import { MessageCircle, Clock, CheckCircle, User } from 'lucide-react';
 import { revalidatePath } from 'next/cache';
+import { isAdminAction } from '@/lib/auth';
 
 export default async function AdminTicketsPage() {
   const tickets = await prisma.ticket.findMany({
@@ -10,6 +11,7 @@ export default async function AdminTicketsPage() {
 
   async function closeTicket(id: number) {
     'use server';
+    await isAdminAction();
     await prisma.ticket.update({
       where: { id },
       data: { status: 'CLOSED' }

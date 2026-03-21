@@ -1,6 +1,7 @@
 import prisma from '@/lib/prisma';
 import { Check, X, Eye, Trash2 } from 'lucide-react';
 import { revalidatePath } from 'next/cache';
+import { isAdminAction } from '@/lib/auth';
 
 export default async function AdminAdsPage() {
   const pendingAds = await prisma.ad.findMany({
@@ -11,6 +12,7 @@ export default async function AdminAdsPage() {
 
   async function approveAd(id: number) {
     'use server';
+    await isAdminAction();
     await prisma.ad.update({
       where: { id },
       data: { status: 'APPROVED' }
@@ -20,6 +22,7 @@ export default async function AdminAdsPage() {
 
   async function rejectAd(id: number) {
     'use server';
+    await isAdminAction();
     await prisma.ad.update({
       where: { id },
       data: { status: 'REJECTED' }
