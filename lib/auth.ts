@@ -1,10 +1,12 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { getServerSession } from 'next-auth';
+import { authOptions } from './auth-options';
 
 export async function checkAdminAuth() {
-  const cookieStore = await cookies();
-  const isAdmin = cookieStore.get('is_admin')?.value === 'true';
-  return isAdmin;
+  const session = await getServerSession(authOptions);
+  const userRole = (session?.user as any)?.role;
+  return userRole === 'SUPERADMIN' || userRole === 'MODERATOR';
 }
 
 export async function protectAdminRoute() {
@@ -19,4 +21,9 @@ export async function isAdminAction() {
   if (!isAdmin) {
     throw new Error('Unauthorized: Admin access required.');
   }
+}
+
+export async function isSuperAdmin() {
+  const session = await getServerSession(authOptions);
+  return (session?.user as any)?.role === 'SUPERADMIN';
 }

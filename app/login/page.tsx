@@ -1,56 +1,57 @@
+'use client';
+
 import Link from 'next/link';
+import { signIn } from 'next-auth/react';
+import { Mail, Github } from 'lucide-react';
 
 export default function LoginPage() {
   return (
     <div className="max-w-md mx-auto py-20">
-      <div className="bg-white p-8 border rounded-2xl shadow-sm space-y-6">
-        <h1 className="text-2xl font-bold text-center">Welcome back</h1>
-        <p className="text-gray-500 text-center text-sm -mt-4">Sign in to manage your UK ads</p>
+      <div className="bg-white p-10 rounded-[2.5rem] border shadow-2xl shadow-gray-100 space-y-8">
+        <div className="text-center space-y-2">
+          <h1 className="text-4xl font-black text-gray-900 tracking-tight">Welcome back</h1>
+          <p className="text-gray-500 font-medium">Sign in to manage your UK ads</p>
+        </div>
 
-        <form className="space-y-4">
-          <div className="space-y-2 text-sm">
-            <label className="block font-bold text-gray-700">Email Address</label>
-            <input
-              type="email"
-              required
-              placeholder="name@example.co.uk"
-              className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <label className="block font-bold text-gray-700">Password</label>
-              <button type="button" className="text-blue-600 font-semibold hover:underline">Forgot?</button>
+        <div className="space-y-4">
+          <button
+            onClick={() => signIn('google', { callbackUrl: '/' })}
+            className="w-full flex items-center justify-center gap-3 border-2 border-gray-100 py-4 rounded-2xl font-bold hover:bg-gray-50 transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <img src="https://authjs.dev/img/providers/google.svg" alt="Google" className="w-5 h-5" />
+            Continue with Google
+          </button>
+
+          <div className="relative text-center py-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-100"></div>
             </div>
-            <input
-              type="password"
-              required
-              className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <span className="relative bg-white px-4 text-xs font-black text-gray-400 uppercase tracking-widest">or email</span>
           </div>
-          <button className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors">
-            Sign In
-          </button>
-        </form>
 
-        <div className="relative text-center py-4">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-200"></div>
-          </div>
-          <span className="relative bg-white px-4 text-sm text-gray-400">or continue with</span>
+          <form className="space-y-4" onSubmit={(e) => {
+            e.preventDefault();
+            const email = (e.currentTarget.elements.namedItem('email') as HTMLInputElement).value;
+            signIn('email', { email, callbackUrl: '/' });
+          }}>
+            <div className="space-y-2 text-sm">
+              <label className="block font-black text-gray-500 uppercase tracking-widest text-[10px]">Email Address</label>
+              <input
+                name="email"
+                type="email"
+                required
+                placeholder="name@example.co.uk"
+                className="w-full border-2 border-gray-100 rounded-2xl p-4 outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-600 transition-all"
+              />
+            </div>
+            <button type="submit" className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-lg hover:bg-blue-700 transition-all shadow-lg shadow-blue-200">
+              Send Magic Link
+            </button>
+          </form>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <button className="border py-2 px-4 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors text-sm">
-            Google
-          </button>
-          <button className="border py-2 px-4 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors text-sm">
-            Facebook
-          </button>
-        </div>
-
-        <p className="text-center text-sm text-gray-600 pt-4">
-          Don't have an account? <Link href="/signup" className="text-blue-600 font-bold hover:underline">Join now</Link>
+        <p className="text-center text-sm text-gray-500 font-medium pt-4">
+          Don't have an account? <Link href="/signup" className="text-blue-600 font-black hover:underline">Join UK Classifieds</Link>
         </p>
       </div>
     </div>
