@@ -204,14 +204,14 @@
 | **`sitemap.php`** | **`f_ads_category_tree_arr`**, **`f_ads_category_tree_draw`** | Промежуточные структуры/отрисовка для карты сайта. |
 | **`login_activation.php`** | **`f_html_email_activation`** | HTML тела письма активации. |
 | **`login_forgout.php`** | **`f_html_email_forgout`** | HTML письма восстановления пароля. |
-| **`user_pays_add.php`**, **`user_pays_add_intent.php`** | **`create_payment_intent`** | Серверный cURL к Stripe API (не JSON API проекта). |
+| **`user_pays_add.php`** | — | Оплата через Stripe.js и **`f_ajax('pay', 'create_intent', …)`**. |
 
 ---
 
 ## Примечания по качеству кода
 
-- В **`api/pay.php`** и др. по-прежнему могут вызываться вспомогательные функции (**`f_pay_get`**, **`f_pay_type_ru`**, **`f_get_pdd_category_arr`** и др.), которых **нет** в текущем `func/` — при соответствующих запросах возможны **фатальные ошибки**.
-- В **`f_db.php`** дублирование **`f_num_encode`/`f_num_decode`** — оставить одну реализацию после ревью.
+- **`api/subscription.php`:** вызов **`f_get_pdd_category_arr()`** обёрнут в **`function_exists`**; при отсутствии функции категория не валидируется по списку.
+- В **`f_db.php`** функции **`f_num_encode`/`f_num_decode`** объявлены по одному разу (старый закомментированный вариант оставлен только в комментарии).
 - Для полного понимания полей БД смотрите **`schema.sql`**.
 
 ---

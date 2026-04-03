@@ -492,18 +492,20 @@ f_page_title_set( $page_title );
 						}
 						//
 						if( $json_filter['form_type'] == 'checkbox' ){
-							$val_arr = $json_ads_filter_list_query[ $json_filter['_id'] ]
+							$val_raw = $json_ads_filter_list_query[ $json_filter['_id'] ] ?? null;
+							$val_arr = is_array($val_raw) ? $val_raw : (($val_raw === null || $val_raw === '') ? [] : [ $val_raw ]);
+							$arr_checkbox_opts = $json_filter['arr_checkbox'] ?? [];
 				?>
 							<div class="param_group">
 								<div class="param_name"><?php f_echo( $json_filter['title_en'] ); ?></div>
 				<?php
 								//f_test( $json_filter['json_checkbox'] );
 								//foreach($json_filter['json_checkbox'] as $key => $json_checkbox){
-								if( count($json_filter['arr_checkbox']) < 5 ){
-									foreach($json_filter['arr_checkbox'] as $json_checkbox){
+								if( count($arr_checkbox_opts) < 5 ){
+									foreach($arr_checkbox_opts as $json_checkbox){
 										$json_checkbox['title_en'] = $json_checkbox['title_en'] ?: $json_checkbox['title_ru'];
 										
-										$html_is_checked = in_array( $json_checkbox['_id'], $val_arr) ? 'checked' : '';
+										$html_is_checked = in_array( $json_checkbox['_id'], $val_arr, false) ? 'checked' : '';
 				?>
 										<div class="form-check">
 											<input class="form-check-input" type="checkbox" filter_name="category" filter_id="<?php f_echo( $json_checkbox['ads_param_key_id'] ); ?>" filter_key_id="<?php f_echo( $json_checkbox['ads_param_key_id'] ); ?>" id="checkbox_<?php f_echo( $json_checkbox['_id'] ); ?>"  <?php f_echo( $html_is_checked ); ?> value="<?php f_echo( $json_checkbox['_id'] ); ?>" parent="">
@@ -512,8 +514,8 @@ f_page_title_set( $page_title );
 				<?php
 									}
 								}else{
-									$arr_select_id = $json_ads_filter_list_query[ $json_filter['_id'] ];
-									$arr_select_id = gettype($arr_select_id) == 'array' ? $arr_select_id : [$arr_select_id];
+									$arr_select_raw = $json_ads_filter_list_query[ $json_filter['_id'] ] ?? null;
+									$arr_select_id = is_array($arr_select_raw) ? $arr_select_raw : (($arr_select_raw === null || $arr_select_raw === '') ? [] : [ $arr_select_raw ]);
 									
 									
 									//$attr_select2_sub =  $json_filter['_id'] == 60 ? " select2_sub='#select_ads_filter_882' " : "";
@@ -522,9 +524,9 @@ f_page_title_set( $page_title );
 								<select select2  select2_search  select2_parent=".filter_box_split_list_ads"  multiple <?php f_echo_html( $attr_select2_sub ); ?>  filter_id="<?php f_echo_html( $json_filter['_id'] ); ?>"  id="select_ads_filter_<?php f_echo_html( $json_filter['_id'] ); ?>">
 									<!--<option value="" <?php f_echo_html( $arr_select_id[0] == '' ? 'selected' : '' ); ?> ><?php f_echo_html( f_translate('All') ); ?></option>-->
 				<?php
-									foreach($json_filter['arr_checkbox'] as&$json_checkbox){
+									foreach($arr_checkbox_opts as&$json_checkbox){
 										$json_checkbox['title_en'] = $json_checkbox['title_en'] ?: $json_checkbox['title_ru'];
-										$selected = in_array( $json_checkbox['_id'], $arr_select_id) ? 'selected' : '';
+										$selected = in_array( $json_checkbox['_id'], $arr_select_id, false) ? 'selected' : '';
 										$parent_domain = $json_checkbox['parent_domain'] ? (' parent_domain="'. $json_checkbox['parent_domain'] .'" ') : '';
 										echo('<option value="'. f_html($json_checkbox['_id']) .'"  '.$selected . $parent_domain .' >'. f_html($json_checkbox['title_en']) .'</option>');
 									}

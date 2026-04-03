@@ -41,18 +41,46 @@ if( !empty($store_row['banner_upload_id']) ){
 	}
 }
 
+$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$base_url = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? '');
+$desc_plain = mb_substr(trim(strip_tags((string)($store_row['description'] ?? ''))), 0, 300);
+$GLOBALS['WEB_JSON']['page_json']['description'] = $desc_plain;
+$og_image = '';
+if( $logo_url !== '' && $logo_url !== '/public/ad_default.jpg' ){
+	$og_image = preg_match('#^https?://#i', $logo_url) ? $logo_url : $base_url . $logo_url;
+}
+$og_meta = '<meta property="og:title" content="' . htmlspecialchars($name, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '">';
+if( $og_image !== '' ){
+	$og_meta .= '<meta property="og:image" content="' . htmlspecialchars($og_image, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '">';
+}
+if( $desc_plain !== '' ){
+	$og_meta .= '<meta property="og:description" content="' . htmlspecialchars($desc_plain, ENT_QUOTES | ENT_HTML5, 'UTF-8') . '">';
+}
+$GLOBALS['WEB_JSON']['page_json']['html_head'] .= $og_meta;
+
+$has_real_banner = $banner_url !== '' && $banner_url !== '/public/ad_default.jpg';
+$has_real_logo = $logo_url !== '' && $logo_url !== '/public/ad_default.jpg';
+
 ?>
 
 <div class="container">
-	<?php if( $banner_url !== '' && $banner_url !== '/public/ad_default.jpg' ){ ?>
+	<?php if( $has_real_banner ){ ?>
 		<div class="rounded overflow-hidden mb-3" style="max-height:220px;">
 			<img src="<?php f_echo_html($banner_url); ?>" alt="" class="w-100 object-fit-cover" style="max-height:220px;object-fit:cover;">
+		</div>
+	<?php } else { ?>
+		<div class="rounded bg-light border mb-3 d-flex align-items-center justify-content-center text-muted" style="min-height:120px;max-height:220px;">
+			<span class="small"><?php f_translate_echo('Cover image'); ?></span>
 		</div>
 	<?php } ?>
 
 	<div class="d-flex flex-wrap gap-3 align-items-start mb-4">
-		<?php if( $logo_url !== '' && $logo_url !== '/public/ad_default.jpg' ){ ?>
+		<?php if( $has_real_logo ){ ?>
 			<img src="<?php f_echo_html($logo_url); ?>" alt="" class="rounded border" style="width:96px;height:96px;object-fit:cover;">
+		<?php } else { ?>
+			<div class="rounded border bg-light d-flex align-items-center justify-content-center flex-shrink-0" style="width:96px;height:96px;" aria-hidden="true">
+				<i class="bi bi-shop fs-2 text-muted"></i>
+			</div>
 		<?php } ?>
 		<div>
 			<h1 class="h3 mb-1"><?php f_echo_html($name); ?></h1>
@@ -66,9 +94,27 @@ if( !empty($store_row['banner_upload_id']) ){
 	</div>
 
 	<h2 class="h5 mb-3"><?php f_translate_echo('Объявления магазина'); ?></h2>
-	<div class="row g-3" id="store_ads_grid"></div>
+	<div class="row g-3" id="store_ads_grid">
+		<?php for( $sk = 0; $sk < 6; $sk++ ){ ?>
+			<div class="col-md-6 col-lg-4 store-ad-skeleton">
+				<div class="rounded border p-2 bg-light" style="min-height:200px;">
+					<div class="bg-secondary bg-opacity-25 rounded mb-2" style="height:140px;animation:pulse 1.2s ease-in-out infinite;"></div>
+					<div class="bg-secondary bg-opacity-25 rounded mb-2" style="height:14px;width:80%;"></div>
+					<div class="bg-secondary bg-opacity-25 rounded" style="height:12px;width:40%;"></div>
+				</div>
+			</div>
+		<?php } ?>
+	</div>
 	<p class="text-muted d-none mt-3" id="store_ads_empty"><?php f_translate_echo('Нет активных объявлений'); ?></p>
 </div>
+
+<style>
+@keyframes storeSkelPulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.55; }
+}
+.store-ad-skeleton .bg-opacity-25 { animation: storeSkelPulse 1.2s ease-in-out infinite; }
+</style>
 
 <script>
 $(function () {

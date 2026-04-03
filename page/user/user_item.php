@@ -24,6 +24,7 @@ $eff_profile = trim((string)(f_user_get()['user_type'] ?? '')) !== '' ? trim(f_u
 $is_admin  = $eff_profile === 'admin';
 $is_business  = $eff_profile === 'business';
 $is_user  = $eff_profile === 'user';
+$is_new = false;
 
 $disabled_if_not_admin = $is_admin ? '' : 'disabled';
 

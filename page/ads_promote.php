@@ -68,7 +68,7 @@ $pay_add_vip = f_page_link('user_pays_add') . '?ads_id=' . intval($ad['_id']) . 
 <div class="container">
 
 	<div class="head_page mb-3 pb-2">
-		<a class="back_head_page btn btn-outline-dark" href="<?php f_echo_html($is_admin ? f_page_link('admin_ads_list') : f_page_link('user_ads')); ?>">
+		<a class="back_head_page btn btn-outline-dark" href="<?php f_echo_html(f_page_link('user_ads')); ?>">
 			<i class="bi bi-chevron-left"></i>
 		</a>
 		<h1 class="title_head_page">
@@ -100,7 +100,7 @@ $pay_add_vip = f_page_link('user_pays_add') . '?ads_id=' . intval($ad['_id']) . 
 			</div>
 			<div class="price">£9.99</div>
 			<div>
-				<a class="btn btn-primary" href="<?php f_echo_html($pay_add_vip); ?>"><?php f_translate_echo('Оплатить'); ?></a>
+				<a class="btn btn-outline-primary" href="<?php f_echo_html($pay_add_vip); ?>"><?php f_translate_echo('Оплатить'); ?></a>
 			</div>
 		</div>
 	</div>

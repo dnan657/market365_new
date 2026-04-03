@@ -24,6 +24,18 @@ function f_pay_transaction_next_id(){
 }
 
 
+function f_pay_transaction_id_is_autoincrement(){
+	static $cache = null;
+	if( $cache !== null ){
+		return $cache;
+	}
+	$c = f_db_select("SHOW COLUMNS FROM `pay_transaction` WHERE Field = '_id'");
+	$extra = isset($c[0]['Extra']) ? strtolower((string)$c[0]['Extra']) : '';
+	$cache = strpos($extra, 'auto_increment') !== false;
+	return $cache;
+}
+
+
 function f_pay_table_has_column($col){
 	static $cache = [];
 	if( isset($cache[$col]) ){
@@ -146,7 +158,6 @@ function f_api_pay_create_intent($ARGS, $_web = null){
 	$now = date('Y-m-d H:i:s');
 
 	$row = [
-		'_id' => f_pay_transaction_next_id(),
 		'item_name' => $label,
 		'item_price' => $gbp,
 		'item_price_currency' => 'GBP',
@@ -157,6 +168,9 @@ function f_api_pay_create_intent($ARGS, $_web = null){
 		'create_date' => $now,
 		'update_date' => $now,
 	];
+	if( !f_pay_transaction_id_is_autoincrement() ){
+		$row['_id'] = f_pay_transaction_next_id();
+	}
 	if( f_pay_table_has_column('user_id') ){
 		$row['user_id'] = $me;
 	}
@@ -281,18 +295,15 @@ function f_api_pay_webhook_apply_success($pi_id){
 		$ads_id = intval($row['ads_id']);
 	}
 	$service = strtolower((string)($row['service_type'] ?? ''));
-	if( $service === '' ){
-		$service = 'top';
-	}
 
-	if( $ads_id > 0 && f_db_table_exists('ads') ){
+	if( $ads_id > 0 && $service !== '' && f_db_table_exists('ads') ){
 		$col_top = f_db_select('SHOW COLUMNS FROM `ads` LIKE ' . f_db_sql_value('is_top_until'));
 		$col_vip = f_db_select('SHOW COLUMNS FROM `ads` LIKE ' . f_db_sql_value('is_vip_until'));
 		if( $service === 'vip' && !empty($col_vip) ){
 			f_db_query(
 				'UPDATE `ads` SET `is_vip_until` = DATE_ADD(NOW(), INTERVAL 30 DAY) WHERE `_id` = ' . $ads_id . ' LIMIT 1'
 			);
-		}elseif( !empty($col_top) ){
+		}elseif( $service === 'top' && !empty($col_top) ){
 			f_db_query(
 				'UPDATE `ads` SET `is_top_until` = DATE_ADD(NOW(), INTERVAL 7 DAY) WHERE `_id` = ' . $ads_id . ' LIMIT 1'
 			);

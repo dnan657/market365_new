@@ -104,6 +104,9 @@ function f_db_init() {
 				KEY `idx_store_city` (`city_id`)
 			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 		",
+		'011_pay_transaction_id_autoinc' => "
+			ALTER TABLE `pay_transaction` MODIFY `_id` BIGINT NOT NULL AUTO_INCREMENT;
+		",
 	];
 
 	// Примечание: если миграция 008/009 уже частично применена вручную и падает на ADD KEY,

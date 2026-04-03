@@ -230,34 +230,40 @@ function f_api_get_ads($ARGS){
 		return $response_json;
 	}
 	
+	$price = isset($item_json['price']) ? floatval($item_json['price']) : 0;
+	$curr = trim((string)($item_json['price_currency'] ?? ''));
+	if( $curr === '' ){
+		$curr = f_page_currency();
+	}
 	
-	
-	$response_json['data'] = [
-		'_id_str' => $item_json['_id_str'],
-		'title' => $item_json['title'],
-		'description' => $item_json['description'],
-		'html_price_min' => $item_json['html_price_min'],
-		'html_lesson_dur' => $item_json['html_lesson_dur'],
-		'html_lesson_count_week' => $item_json['html_lesson_count_week'],
-		'html_city' => $item_json['html_city'],
-		'html_age' => $item_json['html_age'],
-		'html_category' => $item_json['html_category'],
-		'html_people_count' => $item_json['html_people_count'],
-		'html_level' => $item_json['html_level'],
-		'html_time' => $item_json['html_time'],
-		'html_lang_edu' => $item_json['html_lang_edu'],
-		'html_week_of_day' => $item_json['html_week_of_day'],
-		'html_equipment' => $item_json['html_equipment'],
-		'html_support_invalid' => $item_json['html_support_invalid'],
-		'address' => $item_json['address'],
-		'html_lesson_count_min' => $item_json['html_lesson_count_min'],
-		
-		'html_user_name' => $item_json['html_user_name'],
-		'html_user_phone' => $item_json['html_user_phone'],
-		'html_user_login' => $item_json['html_user_login'],
-		'html_user_link' => $item_json['html_user_link'],
-		
+	$data = [
+		'_id_str' => $item_json['_id_str'] ?? f_num_encode($item_json['_id'] ?? 0),
+		'_id' => intval($item_json['_id'] ?? 0),
+		'title' => (string)($item_json['title'] ?? ''),
+		'description' => (string)($item_json['description'] ?? ''),
+		'price' => $price,
+		'price_currency' => $curr,
+		'html_price' => f_number_space($price) . ' ' . $curr,
+		'phone' => (string)($item_json['phone'] ?? ''),
+		'address' => (string)($item_json['address'] ?? ''),
+		'publication_on' => intval($item_json['publication_on'] ?? 0),
+		'user_id' => intval($item_json['user_id'] ?? 0),
+		'html_city' => (string)($item_json['html_city'] ?? ''),
+		'html_create_date' => (string)($item_json['html_create_date'] ?? ''),
+		'gps_address_lat_lng' => (string)($item_json['gps_address_lat_lng'] ?? ''),
+		'html_user_name' => (string)($item_json['html_user_name'] ?? ''),
+		'html_user_phone' => (string)($item_json['html_user_phone'] ?? ''),
+		'html_user_login' => (string)($item_json['html_user_login'] ?? ''),
+		'html_user_link' => (string)($item_json['html_user_link'] ?? ''),
 	];
+	if( array_key_exists('is_top_until', $item_json) ){
+		$data['is_top_until'] = $item_json['is_top_until'];
+	}
+	if( array_key_exists('is_vip_until', $item_json) ){
+		$data['is_vip_until'] = $item_json['is_vip_until'];
+	}
+	
+	$response_json['data'] = $data;
 	
 	return $response_json;
 }

@@ -270,9 +270,6 @@ function f_db_update_smart($table="", $where_json=[], $value_json){
 	
 	$table_sql = f_db_sql_column($table);
 	
-	$limit_sql = intval($limit);
-	$offset_sql = intval($offset);
-	
 	$set_arr = [];
 	foreach (array_keys($value_json) as $name_column) {
 		$key_sql = f_db_sql_column($name_column);

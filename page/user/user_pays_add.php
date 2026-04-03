@@ -10,6 +10,20 @@ if( $service_type !== 'top' && $service_type !== 'vip' ){
 	$service_type = '';
 }
 
+$pay_order_ad_title = '';
+if( $ads_id > 0 ){
+	$atr = f_db_select('SELECT `title` FROM `ads` WHERE `_id` = ' . $ads_id . ' AND `delete_on` = 0 LIMIT 1');
+	if( !empty($atr[0]['title']) ){
+		$pay_order_ad_title = (string)$atr[0]['title'];
+	}
+}
+$pay_order_service_label = '';
+if( $service_type === 'top' ){
+	$pay_order_service_label = f_translate('TOP listing (7 days)') . ' — £4.99';
+}elseif( $service_type === 'vip' ){
+	$pay_order_service_label = f_translate('VIP listing (30 days)') . ' — £9.99';
+}
+
 $stripe_pk = trim((string)($GLOBALS['WEB_JSON']['api_json']['stripe_public'] ?? ''));
 $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
 $return_base = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? '');
@@ -31,6 +45,13 @@ $return_url = $return_base . f_page_link('user_pays');
 	<?php } elseif( $stripe_pk === '' ){ ?>
 		<div class="alert alert-danger mt-3"><?php f_translate_echo('Платежи временно недоступны (не настроен Stripe).'); ?></div>
 	<?php } else { ?>
+		<div class="alert alert-light border mt-3 mb-0">
+			<div class="small text-muted mb-1"><?php f_translate_echo('You are paying for'); ?></div>
+			<div class="fw-medium"><?php f_echo_html($pay_order_service_label); ?></div>
+			<?php if( $pay_order_ad_title !== '' ){ ?>
+				<div class="small mt-2 text-muted"><?php f_translate_echo('Ad'); ?>: <?php f_echo_html($pay_order_ad_title); ?></div>
+			<?php } ?>
+		</div>
 		<div class="row justify-content-center mt-4">
 			<div class="col-md-6">
 				<div class="card shadow-sm">

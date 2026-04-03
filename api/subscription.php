@@ -73,7 +73,11 @@ function f_api_subscription_edit($ARGS){
 	$update_json = [];
 	
 	if( in_array( f_user_get()['type'], ['admin', 'school'] )) {
-		$update_json['category_question'] = in_array($new_data_json['category_question'], f_get_pdd_category_arr()) ? $new_data_json['category_question'] : null;
+		$pdd_cats = function_exists('f_get_pdd_category_arr') ? f_get_pdd_category_arr() : [];
+		if( !is_array($pdd_cats) ){
+			$pdd_cats = [];
+		}
+		$update_json['category_question'] = in_array($new_data_json['category_question'], $pdd_cats, true) ? $new_data_json['category_question'] : null;
 		$update_json['school_price'] = f_number_if_min_max(0, $new_data_json['school_price'], 100000);
 		$update_json['to_user_group_name'] = $new_data_json['to_user_group_name'];
 		$update_json['school_comment'] = $new_data_json['school_comment'];

@@ -1,28 +1,22 @@
 <?php
 
-$MARKET365_CONFIG = require __DIR__ . '/config.php';
+$MARKET365_DEFAULTS = require __DIR__ . '/config.defaults.php';
+$MARKET365_LOCAL = file_exists(__DIR__ . '/config.php') ? require __DIR__ . '/config.php' : [];
+$MARKET365_CONFIG = array_merge($MARKET365_DEFAULTS, is_array($MARKET365_LOCAL) ? $MARKET365_LOCAL : []);
 
 ini_set('display_errors', 1);
 error_reporting(E_ALL & ~E_NOTICE & ~E_USER_NOTICE & ~E_DEPRECATED & ~E_WARNING );
-// Время по Астане
-date_default_timezone_set('Etc/GMT-0');
+date_default_timezone_set('Europe/London');
 
 session_name('ssid');
 session_set_cookie_params([
-	'lifetime' => 0, // до закрытии браузера
+	'lifetime' => 0,
 	'path' => '/',
-	'domain' => $_SERVER['HTTP_HOST'],
 	'secure' => true,
-	'httponly' => true
+	'httponly' => true,
+	'samesite' => 'Lax',
 ]);
 session_start();
-
-
-if($_SERVER['HTTP_CF_IPCOUNTRY'] != 'KZ' && $_SERVER['HTTP_CF_IPCOUNTRY'] != 'UZ'){
-	//exit();
-}
-
-
 
 
 /*
@@ -155,6 +149,7 @@ $WEB_JSON = [
 		'google_oauth_redirect_url' => $MARKET365_CONFIG['google_oauth_redirect_url'],
 
 		'stripe_webhook_secret' => $MARKET365_CONFIG['stripe_webhook_secret'] ?? '',
+		'cron_secret' => $MARKET365_CONFIG['cron_secret'] ?? '',
 	],
 	
 	'email_json' => [
@@ -390,19 +385,17 @@ foreach($arr_json_route as& $json_route){
 	
 	if(preg_match($regex, $WEB_JSON['uri_clean'], $matches) > 0){
 		
+		$file_on = ($json_route['file_on'] ?? false) === true;
 		
 		if( isset($json_route['user_check']) && $json_route['user_check'] !== f_user_check() ){
-			f_redirect('/');
+			f_redirect(f_page_link('login'));
 		}
 		
-		// Реклама - по боковам - по умолчанию включить
-		$GLOBALS['WEB_JSON']['page_ads']['side'] = $json_route['ads_side'] === true ? true : false;
+		$GLOBALS['WEB_JSON']['page_ads']['side'] = ($json_route['ads_side'] ?? false) === true;
 		
 		$file_path = $json_route['file_path'];
 		break;
 	}
-	
-	$file_on = $json_route['file_on'] == true;
 	
 }
 

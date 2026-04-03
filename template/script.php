@@ -197,6 +197,10 @@ function f_form_get( jq_modal_form ){
 	return data_json;
 }
 
+function f_form_m_value(json_item, jq_input){
+	return json_item;
+}
+
 function f_form_set(form_json, set_json){
 	let jq_modal_form = $( '#' + form_json['name'] );
 	for(let i_item in form_json['control_arr']){
@@ -439,7 +443,9 @@ $('.param_group [select2]').trigger('change');
 	
 </script>
 
-
+<style>
+.item_ad.item_ad_vip .body_item_ad { border: 2px solid #FF6B00; border-radius: 8px; }
+</style>
 
 <div template="ads_item_line" class="item_ad">
 	<a href="#" class="body_item_ad">
@@ -580,12 +586,14 @@ function f_ads_item_line_make(json_item){
 	jq_item.find('.date_item_ad').text( json_item['html_date'] )
 	jq_item.find('.btn_favorite_item_ad').addClass( 'bi-heart' + (json_item['html_favorite_on'] ? '-fill' : '') )
 	let pr = json_item['html_promo'] || '';
+	jq_item.removeClass('item_ad_vip');
 	let $bd = jq_item.find('.badge_promo_item_ad');
 	$bd.removeClass('badge bg-warning text-dark bg-info').addClass('d-none').text('');
 	if (pr === 'top') {
 		$bd.text('TOP').removeClass('d-none').addClass('badge bg-warning text-dark');
 	} else if (pr === 'vip') {
 		$bd.text('VIP').removeClass('d-none').addClass('badge bg-info text-dark');
+		jq_item.addClass('item_ad_vip');
 	}
 	return jq_item
 	
