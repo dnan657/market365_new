@@ -1,5 +1,7 @@
 <?php
 
+$MARKET365_CONFIG = require __DIR__ . '/config.php';
+
 ini_set('display_errors', 1);
 error_reporting(E_ALL & ~E_NOTICE & ~E_USER_NOTICE & ~E_DEPRECATED & ~E_WARNING );
 // Время по Астане
@@ -15,25 +17,6 @@ session_set_cookie_params([
 ]);
 session_start();
 
-$GLOBALS['MARKET365_SECRETS'] = [];
-$__m365SecretsFile = __DIR__ . '/secrets.local.php';
-if (is_file($__m365SecretsFile)) {
-	$__m365Loaded = require $__m365SecretsFile;
-	if (is_array($__m365Loaded)) {
-		$GLOBALS['MARKET365_SECRETS'] = $__m365Loaded;
-	}
-}
-function market365_env(string $key, string $default = ''): string {
-	$v = getenv($key);
-	if ($v !== false && $v !== '') {
-		return $v;
-	}
-	$sec = $GLOBALS['MARKET365_SECRETS'][$key] ?? null;
-	if (is_string($sec) && $sec !== '') {
-		return $sec;
-	}
-	return $default;
-}
 
 if($_SERVER['HTTP_CF_IPCOUNTRY'] != 'KZ' && $_SERVER['HTTP_CF_IPCOUNTRY'] != 'UZ'){
 	//exit();
@@ -134,24 +117,24 @@ $WEB_JSON = [
 	
 	
 	'api_json' => [
-		'stripe_public' => market365_env('MARKET365_STRIPE_PUBLIC'),
-		'stripe_secret' => market365_env('MARKET365_STRIPE_SECRET'),
-		
-		'google_recaptcha_v3_public' => market365_env('MARKET365_RECAPTCHA_V3_PUBLIC'),
-		'google_recaptcha_v3_secret' => market365_env('MARKET365_RECAPTCHA_V3_SECRET'),
-		
-		'google_recaptcha_v2_public' => market365_env('MARKET365_RECAPTCHA_V2_PUBLIC'),
-		'google_recaptcha_v2_secret' => market365_env('MARKET365_RECAPTCHA_V2_SECRET'),
-		
-		'google_oauth_client_id'	=> market365_env('MARKET365_GOOGLE_OAUTH_CLIENT_ID'),
-		'google_oauth_client_secret'=> market365_env('MARKET365_GOOGLE_OAUTH_CLIENT_SECRET'),
-		'google_oauth_redirect_url' => 'https://market365.uk.com/login/oauth/google',
+		'stripe_public' => $MARKET365_CONFIG['stripe_public'],
+		'stripe_secret' => $MARKET365_CONFIG['stripe_secret'],
+
+		'google_recaptcha_v3_public' => $MARKET365_CONFIG['google_recaptcha_v3_public'],
+		'google_recaptcha_v3_secret' => $MARKET365_CONFIG['google_recaptcha_v3_secret'],
+
+		'google_recaptcha_v2_public' => $MARKET365_CONFIG['google_recaptcha_v2_public'],
+		'google_recaptcha_v2_secret' => $MARKET365_CONFIG['google_recaptcha_v2_secret'],
+
+		'google_oauth_client_id'	=> $MARKET365_CONFIG['google_oauth_client_id'],
+		'google_oauth_client_secret'=> $MARKET365_CONFIG['google_oauth_client_secret'],
+		'google_oauth_redirect_url' => $MARKET365_CONFIG['google_oauth_redirect_url'],
 	],
 	
 	'email_json' => [
 		'main' => [
-			"login" => "noreply@market365.uk.com",
-			"pass" => market365_env('MARKET365_SMTP_PASS'),
+			"login" => $MARKET365_CONFIG['email_main_login'],
+			"pass" => $MARKET365_CONFIG['email_main_pass'],
 			
 			"port" => "465",
 			"host" => "smtp.mail.ru", // в mail.ru создать новую почту, войти в неё, привязать телефон и в безопасности создать новый пароль для внешних сервисов

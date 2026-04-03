@@ -107,7 +107,7 @@ button:hover {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-    const stripe = Stripe('<?php echo htmlspecialchars($GLOBALS['WEB_JSON']['api_json']['stripe_public'], ENT_QUOTES, 'UTF-8'); ?>');
+    const stripe = Stripe('<?php echo STRIPE_PUBLISHABLE_KEY; ?>');
 
     let elements;
 
