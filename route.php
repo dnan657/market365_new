@@ -387,7 +387,9 @@ foreach($arr_json_route as& $json_route){
 		
 		$file_on = ($json_route['file_on'] ?? false) === true;
 		
-		if( isset($json_route['user_check']) && $json_route['user_check'] !== f_user_check() ){
+		// Только страницы с user_check => true требуют входа. Значение false означает «доступ без проверки»,
+		// а не «должен быть гость» — иначе после логина GET /login уходит в цикл редиректов на саму себя.
+		if( isset($json_route['user_check']) && $json_route['user_check'] === true && f_user_check() === false ){
 			f_redirect(f_page_link('login'));
 		}
 		
