@@ -70,7 +70,44 @@ function f_db_init() {
 				KEY `idx_fav_ads` (`ads_id`)
 			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 		",
+		'008_ads_promote_columns' => "
+			ALTER TABLE `ads`
+			ADD COLUMN IF NOT EXISTS `is_top_until` DATETIME NULL DEFAULT NULL,
+			ADD COLUMN IF NOT EXISTS `is_vip_until` DATETIME NULL DEFAULT NULL,
+			ADD COLUMN IF NOT EXISTS `store_id` BIGINT NULL DEFAULT NULL,
+			ADD KEY `idx_ads_top_until` (`is_top_until`);
+		",
+		'009_pay_transaction_stripe' => "
+			ALTER TABLE `pay_transaction`
+			ADD COLUMN IF NOT EXISTS `user_id` BIGINT NULL DEFAULT NULL,
+			ADD COLUMN IF NOT EXISTS `ads_id` BIGINT NULL DEFAULT NULL,
+			ADD COLUMN IF NOT EXISTS `stripe_intent_id` VARCHAR(100) NULL DEFAULT NULL,
+			ADD COLUMN IF NOT EXISTS `service_type` VARCHAR(50) NULL DEFAULT NULL,
+			ADD KEY `idx_pt_stripe_intent` (`stripe_intent_id`);
+		",
+		'010_store_table' => "
+			CREATE TABLE IF NOT EXISTS `store` (
+				`_id` BIGINT NOT NULL AUTO_INCREMENT,
+				`_create_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				`user_id` BIGINT NOT NULL,
+				`name` VARCHAR(200) COLLATE utf8mb4_unicode_ci NOT NULL,
+				`slug` VARCHAR(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+				`description` TEXT COLLATE utf8mb4_unicode_ci NULL,
+				`logo_upload_id` BIGINT NULL DEFAULT NULL,
+				`banner_upload_id` BIGINT NULL DEFAULT NULL,
+				`phone` VARCHAR(30) COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+				`address` VARCHAR(300) COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+				`city_id` BIGINT NULL DEFAULT NULL,
+				PRIMARY KEY (`_id`),
+				UNIQUE KEY `ux_store_slug` (`slug`),
+				KEY `idx_store_user` (`user_id`),
+				KEY `idx_store_city` (`city_id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+		",
 	];
+
+	// Примечание: если миграция 008/009 уже частично применена вручную и падает на ADD KEY,
+	// удалите проблемный ключ в БД или закомментируйте соответствующую строку в миграции.
 
 	$applied = 0;
 	foreach ($migrations as $name => $sql) {

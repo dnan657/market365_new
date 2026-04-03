@@ -46,13 +46,24 @@ function f_api_get_list_ads($ARGS){
 		$ads_has_is_top = !empty($col);
 	}
 
+	static $ads_has_promo_until = null;
+	if( $ads_has_promo_until === null ){
+		$c1 = f_db_select("SHOW COLUMNS FROM `ads` LIKE 'is_top_until'");
+		$ads_has_promo_until = !empty($c1);
+	}
+
+	$order_boost = '';
+	if( $ads_has_promo_until ){
+		$order_boost = '(ads.`is_top_until` IS NOT NULL AND ads.`is_top_until` > NOW()) DESC, (ads.`is_vip_until` IS NOT NULL AND ads.`is_vip_until` > NOW()) DESC, ';
+	}
+
 	$order_top = $ads_has_is_top ? 'COALESCE(ads.`is_top`,0) DESC, ' : '';
 	if( $sort === 'price_asc' ){
-		$order_sql = 'ORDER BY ' . $order_top . ' ads.`price` ASC, ads.`_id` DESC';
+		$order_sql = 'ORDER BY ' . $order_boost . $order_top . ' ads.`price` ASC, ads.`_id` DESC';
 	}elseif( $sort === 'price_desc' ){
-		$order_sql = 'ORDER BY ' . $order_top . ' ads.`price` DESC, ads.`_id` DESC';
+		$order_sql = 'ORDER BY ' . $order_boost . $order_top . ' ads.`price` DESC, ads.`_id` DESC';
 	}else{
-		$order_sql = 'ORDER BY ' . $order_top . ' ads.`_create_date` DESC, ads.`_id` DESC';
+		$order_sql = 'ORDER BY ' . $order_boost . $order_top . ' ads.`_create_date` DESC, ads.`_id` DESC';
 	}
 
 	$where = [
@@ -115,6 +126,11 @@ function f_api_get_list_ads($ARGS){
 
 	$where_sql = implode(' AND ', $where);
 
+	$ads_select_extra = '';
+	if( $ads_has_promo_until ){
+		$ads_select_extra = ', ads.`is_top_until`, ads.`is_vip_until`';
+	}
+
 	$sql_from = "
 		FROM `ads` AS ads
 		LEFT JOIN `city` AS ct ON ct.`_id` = ads.`city_id`
@@ -141,7 +157,8 @@ function f_api_get_list_ads($ARGS){
 			ads.`price`,
 			ads.`price_currency`,
 			ads.`_create_date`,
-			ads.`city_id`,
+			ads.`city_id`
+			" . $ads_select_extra . ",
 			img.`jpg_path` AS `thumb_jpg_path`,
 			img.`webp_path` AS `thumb_webp_path`,
 			ct.`title_en` AS `city_title_en`
@@ -167,6 +184,17 @@ function f_api_get_list_ads($ARGS){
 			$city_label = f_translate('не указан');
 		}
 
+		$html_promo = '';
+		if( $ads_has_promo_until ){
+			$tt = $row['is_top_until'] ?? null;
+			$vt = $row['is_vip_until'] ?? null;
+			if( $tt && strtotime((string)$tt) > time() ){
+				$html_promo = 'top';
+			}elseif( $vt && strtotime((string)$vt) > time() ){
+				$html_promo = 'vip';
+			}
+		}
+
 		$response_json['arr_item'][] = [
 			'html_img_src' => f_db_ads_img_public_url($row['thumb_jpg_path'] ?? '', $row['thumb_webp_path'] ?? ''),
 			'title' => $title,
@@ -175,6 +203,7 @@ function f_api_get_list_ads($ARGS){
 			'html_date' => f_html_date_to_last_day($row['_create_date'] ?? ''),
 			'html_favorite_on' => 0,
 			'html_link_ad' => f_page_link('ads_item') . '/' . f_seo_text_to_url($title, 100) . '-' . intval($row['_id']),
+			'html_promo' => $html_promo,
 		];
 	}
 

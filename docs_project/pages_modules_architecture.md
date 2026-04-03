@@ -50,7 +50,7 @@
 |----------------------|-----------|-------------|
 | **`template/script.php`** (глобально на всех страницах с шаблоном) | **`POST /api/ads/get_list`** | Любой блок с атрибутом **`[ads_list_type]`** (сейчас в разметке **`page/ads_list.php`**): бесконечная подгрузка карточек через **`f_ads_item_list_scroll_load`**. |
 | **`page/ads_create.php`** | **`POST /api/ads/save`**, **`POST /api/upload/file`** | Сохранение объявления и загрузка изображений с формы. |
-| **`page/user/user_item.php`** | **`POST /api/user/save`** | Сохранение полей профиля с клиента. |
+| **`page/user/user_item.php`** | **`POST /api/user/save`**, **`POST /api/store/save`** (тип **`business`**) | Профиль и блок «Магазин». |
 | **`page/user/user_settings.php`** | **`POST /api/user/save`** (`save_scope=password`), **`POST /api/upload/file`** | Смена пароля и загрузка аватара (`item_table=user`, `item_type=avatar`). |
 | **`page/subscld_ription_list.php`** | **`POST /api/subscription/create`** | Массовое создание подписок (админ). |
 | **`page/subscld_ription_list.php`** | **`$.ajax` на `/api/user?query=find`** | **Не соответствует** диспетчеру **`api.php`** (ожидается путь **`/api/user/find`** и POST-параметры). Требует правки URL или серверной части. |
@@ -61,7 +61,11 @@
 | **`page/user/user_messages.php`** | **`POST /api/chat/get_list`**, **`get_messages`**, **`send`** | Список диалогов и переписка; опрос **`get_messages`** раз в 8 с. |
 | **`page/user/user_favorites.php`** | **`POST /api/favorite/get_list`**, **`toggle`** | Сетка избранного; удаление через **`toggle`**. |
 | **`template/script.php`** | **`POST /api/chat/unread_count`** | Для ссылок с классом **`js-sync-chat-unread`**: обновление бейджа непрочитанных (интервал 45 с). |
-| **`page/landing.php`**, **`page/ads_category.php`**, **`page/user/*.php`** (кроме перечисленных выше) | *часто нет* | Данные с сервера в PHP при рендере; **`user_pays_add`** использует **Stripe.js** и отдельный endpoint **`create_payment_intent.php`** (не модуль в **`api/`**). |
+| **`page/landing.php`**, **`page/ads_category.php`**, **`page/user/*.php`** (кроме перечисленных выше) | *часто нет* | Данные с сервера в PHP при рендере. |
+| **`page/user/user_pays.php`** | **`POST /api/pay/get_list`** | История **`pay_transaction`**. |
+| **`page/user/user_pays_add.php`** | **`POST /api/pay/create_intent`**, **Stripe.js** | Оплата продвижения; параметры **`ads_id`**, **`service_type`** в query string. |
+| **`page/ads_promote.php`** | — | Ссылки на **`/user/pays/add?...`**. |
+| **`page/store/view.php`** | **`POST /api/store/get_list`** | Витрина **`/shop/{slug}`**; данные магазина в PHP, объявления через **`f_ajax`**. |
 
 **Итог:** проектный REST-слой **`/api/...`** подключён для ленты объявлений, чатов, избранного и части форм; остальной контент — **SSR в PHP** и обычные POST форм.
 
@@ -92,8 +96,8 @@
 |-----|------|--------------|----------------|
 | **`/user`** | `user_item.php` | да | **`/api/user/save`** |
 | **`/user/ads`** | `user_ads.php` | да | — |
-| **`/user/pays`** | `user_pays.php` | да | — |
-| **`/user/pays/add`** | `user_pays_add.php` | да | Stripe (внешний JS/API), не **`api/`** проекта |
+| **`/user/pays`** | `user_pays.php` | да | **`/api/pay/get_list`** |
+| **`/user/pays/add`** | `user_pays_add.php` | да | **`/api/pay/create_intent`**, Stripe.js |
 | **`/user/favorites`** | `user_favorites.php` | да | **`/api/favorite/get_list`**, **`/api/favorite/toggle`** |
 | **`/user/messages`** | `user_messages.php` | да | **`/api/chat/get_list`**, **`get_messages`**, **`send`** |
 | **`/user/notifications`** | `user_notifications.php` | да | — |
@@ -115,7 +119,7 @@
 | **`/ads/list/...`** | `ads_list.php` | да | **`/api/ads/get_list`** (через общий **`script.php`**) |
 | **`/sitemap`**, **`/ads`**, **`/ads/category/...`** | `ads_category.php` | — | — |
 | **`/ads/create`** | `ads_create.php` | — | **`/api/ads/save`**, **`/api/upload/file`** |
-| **`/ads/promote/...`** | `ads_promote.php` | — | в коде страницы вызовов **`f_ajax`** не найдено |
+| **`/ads/promote/...`** | `ads_promote.php` | да | редирект на оплату **`/user/pays/add`** |
 | **`/ads/...`** (карточка) | `ads_item.php` | да | **`/api/chat/send`**, **`/api/favorite/toggle`**; карта: iframe Google Maps по **`gps_point`** при наличии |
 
 ### Служебное
@@ -123,6 +127,8 @@
 | URL | Файл |
 |-----|------|
 | **`/api/dev/db_init`** | **`func/f_db_init.php`** (подключается из **`route.php`**, не через **`api.php`**) |
+| **`/api/pay/webhook`** | Stripe webhook ( **`route.php`** → **`api/pay.php`**, ответ без обёртки **`api.php`**) |
+| **`/shop/{slug}`** | `page/store/view.php` (клиент: **`/api/store/get_list`**) |
 | **`/manifest.json`**, **`/robots.txt`**, **`/sw.js`** | `page_file/*.php` |
 | **`/cookie-set`**, **`/redirect`** | `page/tools/*.php` |
 | *не найдено* | `page/tools/404.php` |

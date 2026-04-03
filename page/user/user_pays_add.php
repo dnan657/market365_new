@@ -1,207 +1,121 @@
 <?php
 
-f_page_title_set( f_translate('Пополнить баланс') );
+f_page_title_set(f_translate('Пополнить баланс'));
 
 $GLOBALS['WEB_JSON']['page_json']['html_head'] .= '<script src="https://js.stripe.com/v3/"></script>';
 
-$pay_amount = 10;
-$pay_currency = 'usd';
-
-
-
-
-
-
-function create_payment_intent($amount, $currency) {
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, 'https://api.stripe.com/v1/payment_intents');
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_POST, 1);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
-        'amount' => $amount * 100, // Stripe expects amount in cents
-        'currency' => $currency,
-        'payment_method_types[]' => 'card',
-        'payment_method_types[]' => 'google_pay',
-        // Add other payment methods as needed
-    ]));
-    curl_setopt($ch, CURLOPT_USERPWD, $GLOBALS['WEB_JSON']['api_json']['stripe_secret'] . ":");
-    $response = curl_exec($ch);
-    curl_close($ch);
-    return json_decode($response, true);
+$ads_id = intval($_GET['ads_id'] ?? 0);
+$service_type = preg_replace('/[^a-z]/', '', strtolower((string)($_GET['service_type'] ?? '')));
+if( $service_type !== 'top' && $service_type !== 'vip' ){
+	$service_type = '';
 }
 
-
+$stripe_pk = trim((string)($GLOBALS['WEB_JSON']['api_json']['stripe_public'] ?? ''));
+$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$return_base = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? '');
+$return_url = $return_base . f_page_link('user_pays');
 
 ?>
 
-
-<style>
-#form_payment {
-	background-color: #fff;
-	padding: 20px;
-	border-radius: 5px;
-	box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-	max-width: 500px;
-	margin: 0 auto;
-}
-label {
-	display: block;
-	margin-bottom: 5px;
-}
-#card-element {
-	padding: 10px;
-	border: 1px solid #ddd;
-	border-radius: 4px;
-	margin-bottom: 15px;
-}
-button {
-	background-color: #4CAF50;
-	color: white;
-	padding: 10px 15px;
-	border: none;
-	border-radius: 4px;
-	cursor: pointer;
-	font-size: 16px;
-}
-button:hover {
-	background-color: #45a049;
-}
-</style>
-
 <div class="container">
-	
 	<div class="head_page">
-	
-		<a class="back_head_page  btn btn-outline-dark"  back_page_link  href="<?php f_echo_html( $is_admin ? f_page_link('admin_pays_list') : '/');  ?>">
+		<a class="back_head_page btn btn-outline-dark" href="<?php f_echo_html(f_page_link('user_pays')); ?>">
 			<i class="bi bi-chevron-left"></i>
 		</a>
-		
-		<h1 class="title_head_page">
-			<?php f_translate_echo('Платежи'); ?>
-			<?php f_echo_html( $is_admin ? ' - #' . f_num_encode( $item_json['_id'] ) : '') ?>
-		</h1>
-		
+		<h1 class="title_head_page"><?php f_translate_echo('Оплата'); ?></h1>
 	</div>
-	
-	<div class="container mt-5">
-        <div class="row justify-content-center">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-body">
-                        <h3 class="card-title text-center mb-4">Payment Form</h3>
-                        <form id="payment-form">
-                            <div id="payment-element">
-                                <!-- Stripe Payment Element will be inserted here -->
-                            </div>
-                            <button id="submit" class="btn btn-primary w-100">
-                                <div class="spinner hidden" id="spinner"></div>
-                                <span id="button-text">Pay now</span>
-                            </button>
-                            <div id="payment-message" class="hidden"></div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-    const stripe = Stripe('<?php echo STRIPE_PUBLISHABLE_KEY; ?>');
+	<?php if( $ads_id <= 0 || $service_type === '' ){ ?>
+		<div class="alert alert-warning mt-3"><?php f_translate_echo('Выберите услугу продвижения на странице объявления.'); ?></div>
+		<p><a class="btn btn-outline-primary" href="<?php f_echo_html(f_page_link('user_ads')); ?>"><?php f_translate_echo('Мои объявления'); ?></a></p>
+	<?php } elseif( $stripe_pk === '' ){ ?>
+		<div class="alert alert-danger mt-3"><?php f_translate_echo('Платежи временно недоступны (не настроен Stripe).'); ?></div>
+	<?php } else { ?>
+		<div class="row justify-content-center mt-4">
+			<div class="col-md-6">
+				<div class="card shadow-sm">
+					<div class="card-body">
+						<div id="pay-loading" class="text-muted"><?php f_translate_echo('Подготовка формы оплаты…'); ?></div>
+						<div id="pay-form-wrap" class="d-none">
+							<form id="payment-form">
+								<div id="payment-element" class="mb-3"></div>
+								<button type="submit" id="submit-pay" class="btn btn-primary w-100">
+									<span id="button-text"><?php f_translate_echo('Оплатить'); ?></span>
+									<span id="spinner-pay" class="d-none spinner-border spinner-border-sm"></span>
+								</button>
+								<div id="payment-message" class="text-danger small mt-2 d-none"></div>
+							</form>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
 
-    let elements;
+		<script>
+		(function () {
+			var adsId = <?php echo (int)$ads_id; ?>;
+			var serviceType = <?php echo json_encode($service_type, JSON_UNESCAPED_UNICODE); ?>;
+			var stripePk = <?php echo json_encode($stripe_pk, JSON_UNESCAPED_UNICODE); ?>;
+			var returnUrl = <?php echo json_encode($return_url, JSON_UNESCAPED_UNICODE); ?>;
 
-    initialize();
-    checkStatus();
+			document.addEventListener('DOMContentLoaded', function () {
+				var stripe = Stripe(stripePk);
+				var elements;
+				var clientSecret = '';
 
-    document
-      .querySelector("#payment-form")
-      .addEventListener("submit", handleSubmit);
+				function showMsg(t) {
+					var el = document.getElementById('payment-message');
+					el.textContent = t || '';
+					el.classList.toggle('d-none', !t);
+				}
 
-    async function initialize() {
-      const { clientSecret } = await fetch("create_payment_intent.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: 1000, currency: 'usd' }),
-      }).then((r) => r.json());
+				function setLoading(on) {
+					var btn = document.getElementById('submit-pay');
+					var sp = document.getElementById('spinner-pay');
+					var tx = document.getElementById('button-text');
+					btn.disabled = on;
+					sp.classList.toggle('d-none', !on);
+					tx.classList.toggle('d-none', on);
+				}
 
-      elements = stripe.elements({ clientSecret });
+				f_ajax('pay', 'create_intent', { ads_id: adsId, service_type: serviceType }, function (res) {
+					res = res.data || {};
+					if (res.error) {
+						showMsg(res.error);
+						document.getElementById('pay-loading').textContent = '';
+						return;
+					}
+					clientSecret = res.client_secret;
+					if (!clientSecret) {
+						showMsg('No client secret');
+						return;
+					}
+					elements = stripe.elements({ clientSecret: clientSecret });
+					var paymentElement = elements.create('payment');
+					paymentElement.mount('#payment-element');
+					document.getElementById('pay-loading').classList.add('d-none');
+					document.getElementById('pay-form-wrap').classList.remove('d-none');
 
-      const paymentElement = elements.create("payment");
-      paymentElement.mount("#payment-element");
-    }
-
-    async function handleSubmit(e) {
-      e.preventDefault();
-      setLoading(true);
-
-      const { error } = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          return_url: "https://your-domain.com/payment_complete.php",
-        },
-      });
-
-      if (error.type === "card_error" || error.type === "validation_error") {
-        showMessage(error.message);
-      } else {
-        showMessage("An unexpected error occurred.");
-      }
-
-      setLoading(false);
-    }
-
-    async function checkStatus() {
-      const clientSecret = new URLSearchParams(window.location.search).get(
-        "payment_intent_client_secret"
-      );
-
-      if (!clientSecret) {
-        return;
-      }
-
-      const { paymentIntent } = await stripe.retrievePaymentIntent(clientSecret);
-
-      switch (paymentIntent.status) {
-        case "succeeded":
-          showMessage("Payment succeeded!");
-          break;
-        case "processing":
-          showMessage("Your payment is processing.");
-          break;
-        case "requires_payment_method":
-          showMessage("Your payment was not successful, please try again.");
-          break;
-        default:
-          showMessage("Something went wrong.");
-          break;
-      }
-    }
-
-    function showMessage(messageText) {
-      const messageContainer = document.querySelector("#payment-message");
-
-      messageContainer.classList.remove("hidden");
-      messageContainer.textContent = messageText;
-
-      setTimeout(function () {
-        messageContainer.classList.add("hidden");
-        messageText.textContent = "";
-      }, 4000);
-    }
-
-    function setLoading(isLoading) {
-      if (isLoading) {
-        document.querySelector("#submit").disabled = true;
-        document.querySelector("#spinner").classList.remove("hidden");
-        document.querySelector("#button-text").classList.add("hidden");
-      } else {
-        document.querySelector("#submit").disabled = false;
-        document.querySelector("#spinner").classList.add("hidden");
-        document.querySelector("#button-text").classList.remove("hidden");
-      }
-    }
-    </script>
-	
+					document.getElementById('payment-form').addEventListener('submit', function (e) {
+						e.preventDefault();
+						setLoading(true);
+						showMsg('');
+						stripe.confirmPayment({
+							elements: elements,
+							confirmParams: { return_url: returnUrl + '?paid=1' },
+							redirect: 'if_required'
+						}).then(function (result) {
+							setLoading(false);
+							if (result.error) {
+								showMsg(result.error.message || 'Payment error');
+							} else if (result.paymentIntent && result.paymentIntent.status === 'succeeded') {
+								window.location.href = returnUrl + '?paid=1';
+							}
+						});
+					});
+				});
+			});
+		})();
+		</script>
+	<?php } ?>
 </div>
-

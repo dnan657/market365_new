@@ -258,6 +258,17 @@ function f_api_upload_file($ARGS){
 		$response_json['error_code'] = 1;
 		return $response_json;
 	}
+
+	if( $item_table === 'store' ){
+		$sid = (int)($item_json['user_id'] ?? 0);
+		$me = (int)f_user_get()['_id'];
+		$is_admin = (f_user_get()['type'] ?? '') === 'admin';
+		if( $sid !== $me && !$is_admin ){
+			$response_json['error'] = 'No access for you';
+			$response_json['error_code'] = 1;
+			return $response_json;
+		}
+	}
 	
 	// Проверка привзяки Записи к пользователю
 	/*

@@ -99,6 +99,30 @@ $WEB_JSON = [
 				'img_thumb_compress_quality' => 80,
 			],
 		],
+		'store' => [
+			'logo' => [
+				'mime_regex' => '/^image\/(jpeg|png)$/',
+				'file_size_max' => 5 * 1024 * 1024,
+				'img_compress_on' => true,
+				'img_min_px_size' => 50,
+				'img_max_px_size' => 4000,
+				'img_compress_px_size' => 600,
+				'img_compress_quality' => 85,
+				'img_thumb_compress_px_size' => 200,
+				'img_thumb_compress_quality' => 80,
+			],
+			'banner' => [
+				'mime_regex' => '/^image\/(jpeg|png)$/',
+				'file_size_max' => 8 * 1024 * 1024,
+				'img_compress_on' => true,
+				'img_min_px_size' => 100,
+				'img_max_px_size' => 8000,
+				'img_compress_px_size' => 1600,
+				'img_compress_quality' => 82,
+				'img_thumb_compress_px_size' => 400,
+				'img_thumb_compress_quality' => 78,
+			],
+		],
 	],
 	
 	'did_json' => [
@@ -129,6 +153,8 @@ $WEB_JSON = [
 		'google_oauth_client_id'	=> $MARKET365_CONFIG['google_oauth_client_id'],
 		'google_oauth_client_secret'=> $MARKET365_CONFIG['google_oauth_client_secret'],
 		'google_oauth_redirect_url' => $MARKET365_CONFIG['google_oauth_redirect_url'],
+
+		'stripe_webhook_secret' => $MARKET365_CONFIG['stripe_webhook_secret'] ?? '',
 	],
 	
 	'email_json' => [
@@ -198,6 +224,7 @@ $WEB_JSON = [
 		'ads_category'			=>  '/ads/category',
 		'ads_item'				=>  '/ads/item',
 		'ads_promote'			=>  '/ads/promote',
+		'shop'					=>  '/shop',
 		
 		'page_info'				=>  '/info',
 		'page_about_us'			=>  '/info/about-us',
@@ -263,6 +290,7 @@ $WEB_JSON['uri_clean'] = explode('#',
 			)[0]
 		)[0]; // "/uri?query=value#hash" => "uri"
 $WEB_JSON['uri_dir_arr'] = explode('/', $WEB_JSON['uri_clean']);
+$GLOBALS['WEB_JSON'] = &$WEB_JSON;
 
 require($WEB_JSON['dir_func'] . 'f_db.php');
 require($WEB_JSON['dir_func'] . 'f_db_get.php');
@@ -273,6 +301,12 @@ if ($WEB_JSON['uri_clean'] === 'api/dev/db_init') {
 	require($WEB_JSON['dir_func'] . 'f_db_init.php');
 	header('Content-Type: text/plain; charset=utf-8');
 	echo f_db_init();
+	exit;
+}
+
+if ($WEB_JSON['uri_clean'] === 'api/pay/webhook') {
+	require($WEB_JSON['dir_api'] . 'pay.php');
+	f_api_pay_webhook_dispatch();
 	exit;
 }
 
@@ -300,6 +334,8 @@ $arr_json_route = [
 	['regex' => 'user\/exit(\/[a-zA-Z0-9]*)?',				'file_path' => $WEB_JSON['dir_page_user'] . 'user_exit.php',				'user_check'=>true],
 	
 	['regex' => 'user\/set-auth',							'file_path' => $WEB_JSON['dir_page_user'] . 'user_set_auth.php'],
+	
+	['regex' => 'shop\/[a-z0-9\-]+',						'file_path' => $WEB_JSON['dir_page'] . 'store/view.php',		'ads_side'=>true],
 	
 	['regex' => 'info',										'file_path' => $WEB_JSON['dir_page'] . 'info_list.php'],
 	['regex' => 'info\/.*?',								'file_path' => $WEB_JSON['dir_page'] . 'info_item.php'],

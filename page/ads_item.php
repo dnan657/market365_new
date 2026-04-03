@@ -460,6 +460,10 @@ f_page_title_set($page_title);
 				<?php } ?>
 				
 				<div class="btn btn-outline-primary btn-lg  w-100"><?php f_translate_echo('Show phone'); ?></div>
+
+				<?php if( $is_owner && $ad_found ){ ?>
+				<a class="btn btn-outline-dark btn-lg w-100 mt-2" href="<?php f_echo_html(f_page_link('ads_promote') . '/' . f_seo_text_to_url((string)($ad['title'] ?? 'ad'), 100) . '-' . intval($_id_item)); ?>"><?php f_translate_echo('Promote'); ?></a>
+				<?php } ?>
 				
 			</div>
 			

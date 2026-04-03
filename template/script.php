@@ -445,10 +445,11 @@ $('.param_group [select2]').trigger('change');
 	<a href="#" class="body_item_ad">
 		<img class="img_item_ad" src="/public/ad_default.jpg">
 		<div class="text_item_ad">
-			<div class="d-flex  justify-content-between">
+			<div class="d-flex  justify-content-between  align-items-start  gap-2">
 				<div class="title_item_ad">
 					I will sell a new Luxury segment car directly from the salon
 				</div>
+				<span class="badge_promo_item_ad  d-none"></span>
 				<div class="btn_favorite_item_ad   bi"></div>
 			</div>
 			<div class="price_item_ad">
@@ -578,6 +579,14 @@ function f_ads_item_line_make(json_item){
 	jq_item.find('.city_item_ad').text( json_item['html_city'] )
 	jq_item.find('.date_item_ad').text( json_item['html_date'] )
 	jq_item.find('.btn_favorite_item_ad').addClass( 'bi-heart' + (json_item['html_favorite_on'] ? '-fill' : '') )
+	let pr = json_item['html_promo'] || '';
+	let $bd = jq_item.find('.badge_promo_item_ad');
+	$bd.removeClass('badge bg-warning text-dark bg-info').addClass('d-none').text('');
+	if (pr === 'top') {
+		$bd.text('TOP').removeClass('d-none').addClass('badge bg-warning text-dark');
+	} else if (pr === 'vip') {
+		$bd.text('VIP').removeClass('d-none').addClass('badge bg-info text-dark');
+	}
 	return jq_item
 	
 }

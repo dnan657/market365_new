@@ -22,7 +22,12 @@
 | | `save` → `f_api_user_save` | Обновление **`user`**; для не-админа при **`save_scope=password`** — только смена пароля (проверка **`password_old`**). Админ может менять **`user_type`** (синхронизируется с **`type`**). |
 | | `login_create` / `login_edit` | Создание/правка записей в **`user`** (вспомогательные учётные записи с логином **`@...`**). |
 | **`api/upload.php`** | `file` → `f_api_upload_file` | Приём **`$_FILES`**, валидация по **`WEB_JSON['upload_json']`**, запись в **`upload`**, сжатие изображений (**`f_image_compress_save`**). Для **`item_table=user`** разрешена загрузка только для **`item_id`** текущего пользователя. |
-| **`api/pay.php`** | `find` / `save` | Работа с сущностью **`pay`**; в **`find`** вызывается **`f_pay_get()`** — в проекте **нет определения** функции (код, вероятно, из другой ветки). Используются также **`f_pay_type_ru`**, **`f_pay_city_ru`**. |
+| **`api/pay.php`** | `create_intent` → `f_api_pay_create_intent` | Авторизованный пользователь: **`ads_id`**, **`service_type`** (`top` / `vip`). Создаёт Stripe PaymentIntent (GBP, pence), пишет строку в **`pay_transaction`** (`pending`), возвращает **`client_secret`** и **`stripe_public`**. |
+| | `get_list` → `f_api_pay_get_list` | История **`pay_transaction`** по **`user_id`** (нужна миграция колонки **`user_id`**). |
+| | *Webhook* | URL **`/api/pay/webhook`** обрабатывается в **`route.php`** (не через обёртку **`api.php`**): проверка **`Stripe-Signature`**, событие **`payment_intent.succeeded`** → обновление **`pay_transaction`**, выставление **`ads.is_top_until` / `is_vip_until`**, письмо пользователю. Секрет: **`stripe_webhook_secret`** в **`config.php`**. |
+| **`api/store.php`** | `save` → `f_api_store_save` | Только **`business` / `b2b` / admin**: создание/обновление **`store`** по **`user_id`**, уникальный **`slug`**. |
+| | `get` → `f_api_store_get` | Публичные данные витрины по **`slug`** (лого/баннер через **`upload`**). |
+| | `get_list` → `f_api_store_get_list` | Список объявлений магазина в формате **`arr_item`** (как **`ads/get_list`**); учитывается **`ads.store_id`** или, при пустом **`store_id`**, объявления владельца. |
 | **`api/subscription.php`** | `edit` → `f_api_subscription_edit` | Обновление **`pdd_subscription`**: ветки для **admin** и **school** (активация, отмена, поля цен/дат). Вызывается **`f_get_pdd_category_arr()`** — в репозитории **не найдена**. |
 | | `create` → `f_api_subscription_create` | Только **admin**: пакетная вставка подписок, проверка **`ssid` === session_id()**, запись в **`pdd_pay`**. |
 | **`api/cron.php`** | `expired` → `f_api_cron_expired` | Вызов **`f_db_get_test_update_expired()`** и **`f_db_get_subscription_update_expired()`** — обновление просроченных сущностей. Предполагается вызов по cron (в комментарии пример URL). |
@@ -55,8 +60,14 @@
 
 ### `api/pay.php`
 
-- Задуман как аналог user API для сущности платежей/клиентов **`pay`**.
-- Перед использованием в продакшене нужно восстановить **`f_pay_get`** и вспомогательные **`f_pay_*_ru`**, **`f_list_city`** (часть уже используется в **`save`**).
+- **Stripe:** ключи в **`WEB_JSON['api_json']`** (`stripe_public`, `stripe_secret`, `stripe_webhook_secret`).
+- **Таблицы:** **`pay_transaction`**, **`ads`** (поля **`is_top_until`**, **`is_vip_until`** — миграции **`f_db_init.php`**).
+- Старые обработчики **`find` / `save`** для таблицы **`pay`** удалены; при необходимости вынести в отдельный модуль (например **`api/pay_legacy.php`**).
+
+### `api/store.php`
+
+- **Таблица:** **`store`** (миграция **`010_store_table`**).
+- **Загрузка файлов:** **`api/upload/file`** с **`item_table=store`**, **`item_type`** `logo` / `banner` (см. **`upload_json`** в **`route.php`**).
 
 ### `api/subscription.php`
 

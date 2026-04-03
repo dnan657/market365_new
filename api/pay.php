@@ -1,231 +1,337 @@
 <?php
 
-
-// Набор функций
 $gl_api_func_json = [
-	"find"			=> "f_api_pay_find",
-	"save"			=> "f_api_pay_save"
+	'create_intent' => 'f_api_pay_create_intent',
+	'get_list'      => 'f_api_pay_get_list',
 ];
 
 
-// Список пользователей
-function f_api_pay_find($ARGS){
-	
+function f_api_pay_require_user(){
+	$u = f_user_get();
+	if( !is_array($u) || empty($u['_id']) ){
+		return [
+			'error' => 'Требуется вход',
+			'error_code' => -1,
+		];
+	}
+	return null;
+}
+
+
+function f_pay_transaction_next_id(){
+	$r = f_db_select('SELECT COALESCE(MAX(`_id`), 0) + 1 AS `n` FROM `pay_transaction`');
+	return isset($r[0]['n']) ? (int)$r[0]['n'] : 1;
+}
+
+
+function f_pay_table_has_column($col){
+	static $cache = [];
+	if( isset($cache[$col]) ){
+		return $cache[$col];
+	}
+	$c = f_db_select('SHOW COLUMNS FROM `pay_transaction` LIKE ' . f_db_sql_value($col));
+	$cache[$col] = !empty($c);
+	return $cache[$col];
+}
+
+
+function f_pay_service_amount_gbp($service_type){
+	if( $service_type === 'top' ){
+		return [499, 4.99, f_translate('TOP listing (7 days)')];
+	}
+	if( $service_type === 'vip' ){
+		return [999, 9.99, f_translate('VIP listing (30 days)')];
+	}
+	return null;
+}
+
+
+function f_stripe_payment_intent_create($amount_pence, $metadata){
+	$secret = trim((string)($GLOBALS['WEB_JSON']['api_json']['stripe_secret'] ?? ''));
+	if( $secret === '' ){
+		return ['ok' => false, 'error' => 'Stripe secret not configured'];
+	}
+	$fields = [
+		'amount' => (string)intval($amount_pence),
+		'currency' => 'gbp',
+		'automatic_payment_methods[enabled]' => 'true',
+	];
+	foreach( $metadata as $k => $v ){
+		$fields['metadata[' . $k . ']'] = (string)$v;
+	}
+	$ch = curl_init('https://api.stripe.com/v1/payment_intents');
+	curl_setopt_array($ch, [
+		CURLOPT_POST => true,
+		CURLOPT_POSTFIELDS => http_build_query($fields),
+		CURLOPT_USERPWD => $secret . ':',
+		CURLOPT_RETURNTRANSFER => true,
+		CURLOPT_TIMEOUT => 30,
+	]);
+	$raw = curl_exec($ch);
+	$err = curl_error($ch);
+	curl_close($ch);
+	if( $raw === false ){
+		return ['ok' => false, 'error' => $err ?: 'Stripe request failed'];
+	}
+	$json = json_decode($raw, true);
+	if( !is_array($json) ){
+		return ['ok' => false, 'error' => 'Invalid Stripe response'];
+	}
+	if( !empty($json['error']['message']) ){
+		return ['ok' => false, 'error' => (string)$json['error']['message']];
+	}
+	if( empty($json['id']) || empty($json['client_secret']) ){
+		return ['ok' => false, 'error' => 'Stripe response missing intent'];
+	}
+	return ['ok' => true, 'intent' => $json];
+}
+
+
+function f_api_pay_create_intent($ARGS, $_web = null){
+	$err = f_api_pay_require_user();
+	if( $err ){
+		return $err;
+	}
 	$response_json = [
 		'error' => '',
 		'error_code' => 0,
+		'client_secret' => '',
+		'stripe_public' => trim((string)($GLOBALS['WEB_JSON']['api_json']['stripe_public'] ?? '')),
 	];
-	
-	// Доступ - тоько для Админа
-	if( in_array(f_pay_get()['type'], ['admin', 'school']) == false ){
-		$response_json['error'] = 'Нет доступа';
+
+	$ads_id = intval($ARGS['ads_id'] ?? 0);
+	$service_type = preg_replace('/[^a-z]/', '', strtolower((string)($ARGS['service_type'] ?? '')));
+	if( $ads_id <= 0 || ($service_type !== 'top' && $service_type !== 'vip') ){
+		$response_json['error'] = 'Invalid request';
 		$response_json['error_code'] = -2;
 		return $response_json;
 	}
-	
-	$search = trim( $ARGS['search'] );
-	$text = f_db_sql_value_only( $search );
-	$number = f_db_sql_value( intval( $search ) );
-	
-	$sql_query = '
-		SELECT
-			`_id`,
-			`_create_pay_id`,
-			`password`,
-			`name`,
-			`email`,
-			`login`,
-			`phone`,
-			`city`
-		FROM
-			`pay`
-		WHERE
-			(
-				`_id` = ' . $number . '
-				OR 
-				`phone` = "' . $number . '"
-				OR 
-				`iin` = "' . $number . '"
-				OR
-				`name` LIKE "%' . $text . '%"
-				OR 
-				`email` LIKE "%' . $text . '%"
-				OR 
-				`login` LIKE "%@' . $text . '%"
-			)
-	';
-	
-	if( f_pay_get()['type'] == 'admin' ){
-		
-		$sql_query = '
-			SELECT
-				`_id`,
-				`name`,
-				`_create_date`,
-				`_create_pay_id`,
-				`password`,
-				`type`,
-				`email`,
-				`login`,
-				`iin`,
-				`phone`,
-				`city`,
-				`address`,
-				`gender`,
-				`birthday_date`,
-				`admin_comment`
-			FROM
-				`pay`
-			WHERE
-				(
-					`_id` = ' . $number . '
-					OR 
-					`phone` = "' . $number . '"
-					OR 
-					`iin` = "' . $number . '"
-					OR
-					`name` LIKE "%' . $text . '%"
-					OR 
-					`email` LIKE "%' . $text . '%"
-					OR 
-					`login` LIKE "%@' . $text . '%"
-				)
-		';
+
+	$svc = f_pay_service_amount_gbp($service_type);
+	if( !$svc ){
+		$response_json['error'] = 'Invalid service';
+		return $response_json;
 	}
-	
-	
-	if( f_pay_get()['type'] == 'school' ){
-		$sql_query .= "\n AND  `type` = 'user' ";
+	list($pence, $gbp, $label) = $svc;
+
+	$me = intval(f_user_get()['_id']);
+	$ad = f_db_select(
+		'SELECT `_id`, `user_id`, `title` FROM `ads` WHERE `_id` = ' . $ads_id . ' AND `delete_on` = 0 LIMIT 1'
+	);
+	if( empty($ad) ){
+		$response_json['error'] = 'Ad not found';
+		$response_json['error_code'] = -3;
+		return $response_json;
 	}
-	
-	$sql_query .= "\n LIMIT 20 ";
-	
-	
-	$response_json['data_arr'] = f_db_select( $sql_query );
-	
-	for($i=0; $i<count($response_json['data_arr']); $i++){
-		$response_json['data_arr'][$i]['_id_str'] = f_num_encode( $response_json['data_arr'][$i]['_id'] );
-		
-		if( isset($response_json['data_arr'][$i]['type']) ){
-			$response_json['data_arr'][$i]['type_str'] = f_pay_type_ru( $response_json['data_arr'][$i]['type'] );
-		}
-		if( isset($response_json['data_arr'][$i]['phone']) ){
-			$response_json['data_arr'][$i]['phone_str'] = f_phone_beauty( $response_json['data_arr'][$i]['phone'] );
-		}
-		if( isset($response_json['data_arr'][$i]['birthday_date']) ){
-			$response_json['data_arr'][$i]['birthday_date_str'] = f_date_beauty( $response_json['data_arr'][$i]['birthday_date'] );
-		}
-		if( isset($response_json['data_arr'][$i]['_create_date']) ){
-			$response_json['data_arr'][$i]['_create_date_str'] = f_datetime_beauty( $response_json['data_arr'][$i]['_create_date_str'] );
-		}
-		if( isset($response_json['data_arr'][$i]['city']) ){
-			$response_json['data_arr'][$i]['city_str'] = f_pay_city_ru( $response_json['data_arr'][$i]['_create_date_str'] );
-		}
-		if( isset($response_json['data_arr'][$i]['city']) ){
-			$response_json['data_arr'][$i]['city_str'] = f_pay_city_ru( $response_json['data_arr'][$i]['_create_date_str'] );
-		}
-		
-		$response_json['data_arr'][$i]['html_create_pay_id'] = null;
-		
-		// Если это Админ или Родитель пользователя
-		if( $response_json['data_arr'][$i]['_create_pay_id'] == f_pay_get()['_id'] || f_pay_get()['type'] == 'admin'){
-			$response_json['data_arr'][$i]['html_create_pay_id'] = f_num_encode( $response_json['data_arr'][$i]['_create_pay_id'] );
-		}else{
-			unset( $response_json['data_arr'][$i]['password'] );
-		}
-		
-		unset( $response_json['data_arr'][$i]['_id'] );
-		unset( $response_json['data_arr'][$i]['_create_pay_id'] );
+	if( intval($ad[0]['user_id'] ?? 0) !== $me && (f_user_get()['type'] ?? '') !== 'admin' ){
+		$response_json['error'] = 'No access';
+		$response_json['error_code'] = -4;
+		return $response_json;
 	}
-	
+
+	$meta = [
+		'user_id' => (string)$me,
+		'ads_id' => (string)$ads_id,
+		'service_type' => $service_type,
+	];
+	$stripe = f_stripe_payment_intent_create($pence, $meta);
+	if( !$stripe['ok'] ){
+		$response_json['error'] = $stripe['error'] ?? 'Stripe error';
+		$response_json['error_code'] = -5;
+		return $response_json;
+	}
+
+	$intent = $stripe['intent'];
+	$pi_id = (string)$intent['id'];
+	$now = date('Y-m-d H:i:s');
+
+	$row = [
+		'_id' => f_pay_transaction_next_id(),
+		'item_name' => $label,
+		'item_price' => $gbp,
+		'item_price_currency' => 'GBP',
+		'paid_amount' => $gbp,
+		'paid_amount_currency' => 'GBP',
+		'txn_id' => $pi_id,
+		'payment_status' => 'pending',
+		'create_date' => $now,
+		'update_date' => $now,
+	];
+	if( f_pay_table_has_column('user_id') ){
+		$row['user_id'] = $me;
+	}
+	if( f_pay_table_has_column('ads_id') ){
+		$row['ads_id'] = $ads_id;
+	}
+	if( f_pay_table_has_column('stripe_intent_id') ){
+		$row['stripe_intent_id'] = $pi_id;
+	}
+	if( f_pay_table_has_column('service_type') ){
+		$row['service_type'] = $service_type;
+	}
+
+	f_db_insert('pay_transaction', $row);
+
+	$response_json['client_secret'] = (string)$intent['client_secret'];
 	return $response_json;
 }
 
 
-
-
-
-// Сохранение о пользователи
-function f_api_pay_save($ARGS){
-	
+function f_api_pay_get_list($ARGS, $_web = null){
+	$err = f_api_pay_require_user();
+	if( $err ){
+		return $err;
+	}
 	$response_json = [
 		'error' => '',
 		'error_code' => 0,
+		'arr_txn' => [],
 	];
-	
-	// Доступ - только Админы и Директоры
-	if( !in_array(f_user_get()['type'], ['admin', 'director'] ) ){
-		$response_json['error'] = 'Нет доступа';
-		$response_json['error_code'] = -2;
+	if( !f_pay_table_has_column('user_id') ){
 		return $response_json;
 	}
-	
-	$is_new = $ARGS['_id_str'] ? true : false;	
-	
-	$item_json = f_db_select_get( 'pay', ['_id_str' => $ARGS['_id_str']] );
-	
-	if( !isset($item_json) ){
-		$response_json['error'] = 'Не найдена запись';
+	$me = intval(f_user_get()['_id']);
+	$rows = f_db_select(
+		'SELECT * FROM `pay_transaction` WHERE `user_id` = ' . $me . ' ORDER BY `create_date` DESC, `_id` DESC LIMIT 80'
+	);
+	if( !is_array($rows) ){
 		return $response_json;
 	}
-	
-	
-	$update_json =[];
-	$update_json['name'] = trim($ARGS['name']);
-	$update_json['city'] = trim($ARGS['city']);
-	$update_json['address'] = trim($ARGS['address']);
-	
-	$city_json = f_list_city();
-	$update_json['city'] = $city_json[ $update_json['city'] ] ? $update_json['city'] : null;
-	
-	if( mb_strlen( trim($ARGS['password']) ) > 0 ){
-		$update_json['password'] = trim($ARGS['password']);
-		$update_json['password_hash_sha256'] = hash('sha256', $update_json['password']);
-	}
-	
-	$ARGS['login'] =  trim( str_replace('@', '', $ARGS['login']) );
-	
-	if( f_pay_get()['type'] == 'admin' ){
-		$update_json['login'] = $ARGS['login'] == '' ? null : '@'. $ARGS['login'];
-		$update_json['email'] = trim($ARGS['email']);
-		$update_json['iin'] = trim($ARGS['iin']);
-		$update_json['phone'] = trim($ARGS['phone']);
-		$update_json['admin_comment'] = trim($ARGS['admin_comment']);
-		if( in_array($ARGS['type'], ['admin', 'school', 'user']) ){
-			$update_json['type'] = $ARGS['type'];
+	foreach( $rows as $r ){
+		$st = strtolower((string)($r['payment_status'] ?? ''));
+		$svc = (string)($r['service_type'] ?? '');
+		if( $svc === '' && !empty($r['item_name']) ){
+			$svc = (string)$r['item_name'];
 		}
-		
-		$update_json['_create_date'] = f_db_value_str_date($ARGS['_create_date']);
-		$update_json['birthday_date'] = f_db_value_str_date($ARGS['birthday_date']);
-		$update_json['activation_date'] = f_db_value_str_date($ARGS['activation_date']);
-		
-		$update_json['gender'] = f_number_if_min_max( 0, intval($ARGS['gender']), 2 );
-		$update_json['activation_on'] = f_number_if_min_max(0, intval($ARGS['activation_on']), 1);
+		$response_json['arr_txn'][] = [
+			'txn_id' => (string)($r['txn_id'] ?? ''),
+			'service_type' => $svc,
+			'amount' => isset($r['paid_amount']) ? floatval($r['paid_amount']) : 0,
+			'currency' => (string)($r['paid_amount_currency'] ?? 'GBP'),
+			'status' => $st,
+			'html_date' => f_datetime_beauty((string)($r['create_date'] ?? '')),
+			'html_amount' => f_number_space(floatval($r['paid_amount'] ?? 0)) . ' ' . f_page_currency(),
+		];
 	}
-	
-	
-	// Проверка на дубли данных аутентификации
-	$arr_item_json = f_db_get_pay( ['email' => $update_json['email'], 'phone' => $update_json['phone'], 'login' => $update_json['login'] ], 2);
-	
-	if( count($arr_item_json) == 1 ){
-		if( $arr_item_json[0]['_id'] != $item_json['_id'] ){
-			$response_json['data_1'] = $arr_item_json;
-			$response_json['error'] = 'Пользователь с таким Email, Телефоном, или Логином уже существует';
-			return $response_json;
-		}
-	}else if( count($arr_item_json) > 1 ){
-		$response_json['data_2'] = $arr_item_json;
-		$response_json['error'] = 'Пользователь с таким Email, Телефоном, или Логином уже существует';
-		return $response_json;
-	}
-	
-	$response_json['update'] = $update_json;
-	
-	f_db_update_smart( "pay", ["_id" => $item_json['_id']], $update_json );
-	
 	return $response_json;
 }
 
 
+function f_stripe_webhook_verify_payload($payload, $sig_header, $secret){
+	$secret = trim($secret);
+	if( $secret === '' || $sig_header === '' || $payload === '' ){
+		return null;
+	}
+	$parts = explode(',', $sig_header);
+	$ts = null;
+	$signatures = [];
+	foreach( $parts as $p ){
+		$p = trim($p);
+		if( strncmp($p, 't=', 2) === 0 ){
+			$ts = substr($p, 2);
+		}elseif( strncmp($p, 'v1=', 3) === 0 ){
+			$signatures[] = substr($p, 3);
+		}
+	}
+	if( $ts === null || !$signatures ){
+		return null;
+	}
+	if( abs(time() - intval($ts)) > 600 ){
+		return null;
+	}
+	$signed = $ts . '.' . $payload;
+	$expected = hash_hmac('sha256', $signed, $secret);
+	foreach( $signatures as $sig ){
+		if( hash_equals($expected, $sig) ){
+			return json_decode($payload, true);
+		}
+	}
+	return null;
+}
 
-?>
+
+function f_api_pay_webhook_apply_success($pi_id){
+	if( $pi_id === '' ){
+		return;
+	}
+	$esc = f_db_sql_string_escape($pi_id);
+	$rows = f_db_select(
+		'SELECT * FROM `pay_transaction` WHERE `txn_id` = "' . $esc . '" LIMIT 1'
+	);
+	if( empty($rows) && f_pay_table_has_column('stripe_intent_id') ){
+		$rows = f_db_select(
+			'SELECT * FROM `pay_transaction` WHERE `stripe_intent_id` = "' . $esc . '" LIMIT 1'
+		);
+	}
+	if( empty($rows) ){
+		return;
+	}
+	$row = $rows[0];
+	if( strtolower((string)($row['payment_status'] ?? '')) === 'success' ){
+		return;
+	}
+	$now = date('Y-m-d H:i:s');
+	f_db_update_smart('pay_transaction', ['_id' => $row['_id']], [
+		'payment_status' => 'success',
+		'update_date' => $now,
+	]);
+
+	$ads_id = 0;
+	if( f_pay_table_has_column('ads_id') && !empty($row['ads_id']) ){
+		$ads_id = intval($row['ads_id']);
+	}
+	$service = strtolower((string)($row['service_type'] ?? ''));
+	if( $service === '' ){
+		$service = 'top';
+	}
+
+	if( $ads_id > 0 && f_db_table_exists('ads') ){
+		$col_top = f_db_select('SHOW COLUMNS FROM `ads` LIKE ' . f_db_sql_value('is_top_until'));
+		$col_vip = f_db_select('SHOW COLUMNS FROM `ads` LIKE ' . f_db_sql_value('is_vip_until'));
+		if( $service === 'vip' && !empty($col_vip) ){
+			f_db_query(
+				'UPDATE `ads` SET `is_vip_until` = DATE_ADD(NOW(), INTERVAL 30 DAY) WHERE `_id` = ' . $ads_id . ' LIMIT 1'
+			);
+		}elseif( !empty($col_top) ){
+			f_db_query(
+				'UPDATE `ads` SET `is_top_until` = DATE_ADD(NOW(), INTERVAL 7 DAY) WHERE `_id` = ' . $ads_id . ' LIMIT 1'
+			);
+		}
+	}
+
+	$uid = 0;
+	if( f_pay_table_has_column('user_id') && !empty($row['user_id']) ){
+		$uid = intval($row['user_id']);
+	}
+	if( $uid > 0 ){
+		$urow = f_db_get_user(['_id' => $uid]);
+		$em = is_array($urow) ? trim((string)($urow['email'] ?? '')) : '';
+		if( $em !== '' ){
+			$html = '<p>' . f_translate('Your payment was successful. Your ad promotion is now active on Market365.') . '</p>';
+			f_email_send($em, f_translate('Payment confirmed — Market365'), $html, 'main');
+		}
+	}
+}
+
+
+function f_api_pay_webhook_dispatch(){
+	header('Content-Type: application/json; charset=utf-8');
+	$secret = $GLOBALS['WEB_JSON']['api_json']['stripe_webhook_secret'] ?? '';
+	$payload = file_get_contents('php://input');
+	$sig = $_SERVER['HTTP_STRIPE_SIGNATURE'] ?? '';
+	$event = f_stripe_webhook_verify_payload($payload, $sig, $secret);
+	if( !is_array($event) ){
+		http_response_code(400);
+		echo json_encode(['error' => 'invalid signature']);
+		return;
+	}
+	$type = (string)($event['type'] ?? '');
+	if( $type === 'payment_intent.succeeded' ){
+		$obj = $event['data']['object'] ?? [];
+		if( is_array($obj) && !empty($obj['id']) ){
+			f_api_pay_webhook_apply_success((string)$obj['id']);
+		}
+	}
+	http_response_code(200);
+	echo json_encode(['received' => true]);
+}

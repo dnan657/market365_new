@@ -27,6 +27,16 @@ $is_user  = $eff_profile === 'user';
 
 $disabled_if_not_admin = $is_admin ? '' : 'disabled';
 
+$store_row = null;
+if( $is_business && f_db_table_exists('store') ){
+	$sr = f_db_select(
+		'SELECT * FROM `store` WHERE `user_id` = ' . intval($item_json['_id']) . ' LIMIT 1'
+	);
+	if( !empty($sr) ){
+		$store_row = $sr[0];
+	}
+}
+
 
 /*
 if( !isset($item_json) || ( $item_json['_id'] != f_user_get()['_id'] && !$is_admin)){
@@ -203,6 +213,41 @@ f_page_title_set( $title_page );
 			
 			
 		</div>
+
+		<?php if( $is_business && f_db_table_exists('store') ){ ?>
+		<div class="col-12 mt-4 pt-4 border-top" form_group="store_shop">
+			<h3 class="h5 mb-3"><?php f_translate_echo('Магазин'); ?></h3>
+			<p class="text-muted small"><?php f_translate_echo('Публичная витрина: после сохранения откройте страницу магазина по ссылке ниже.'); ?></p>
+			<div class="row">
+				<div class="col-md-6 mb-3">
+					<label class="form-label mb-1"><?php f_translate_echo('Название'); ?></label>
+					<input type="text" class="form-control" field_name="store_name" value="<?php f_echo_html((string)($store_row['name'] ?? '')); ?>" />
+				</div>
+				<div class="col-md-6 mb-3">
+					<label class="form-label mb-1">URL (slug)</label>
+					<input type="text" class="form-control" field_name="store_slug" value="<?php f_echo_html((string)($store_row['slug'] ?? '')); ?>" placeholder="my-shop" />
+				</div>
+				<div class="col-12 mb-3">
+					<label class="form-label mb-1"><?php f_translate_echo('Описание'); ?></label>
+					<textarea class="form-control" rows="3" field_name="store_description"><?php f_echo_html((string)($store_row['description'] ?? '')); ?></textarea>
+				</div>
+				<div class="col-md-6 mb-3">
+					<label class="form-label mb-1"><?php f_translate_echo('Phone'); ?></label>
+					<input type="text" class="form-control" field_name="store_phone" value="<?php f_echo_html((string)($store_row['phone'] ?? '')); ?>" />
+				</div>
+				<div class="col-md-6 mb-3">
+					<label class="form-label mb-1"><?php f_translate_echo('Address'); ?></label>
+					<input type="text" class="form-control" field_name="store_address" value="<?php f_echo_html((string)($store_row['address'] ?? '')); ?>" />
+				</div>
+			</div>
+			<?php if( !empty($store_row['slug']) ){ ?>
+				<p class="mb-2">
+					<a href="<?php f_echo_html(f_page_link('shop') . '/' . rawurlencode((string)$store_row['slug'])); ?>" target="_blank" rel="noopener"><?php f_translate_echo('Открыть витрину'); ?></a>
+				</p>
+			<?php } ?>
+			<button type="button" class="btn btn-outline-primary" field_btn="save_store"><?php f_translate_echo('Сохранить магазин'); ?></button>
+		</div>
+		<?php } ?>
 		
 		
 		<div class="btn  btn-lg  btn-dark  my-5 w-auto  px-5  mx-auto" field_btn="save"><?php f_translate_echo($is_new ? 'Create' : 'Save'); ?></div>
@@ -253,6 +298,25 @@ document.addEventListener("DOMContentLoaded", function(event){
 	jq_password.on('input', function(){
 		jq_password.val( jq_password.val().replaceAll(' ', '') )
 	})
+
+	$('[field_btn="save_store"]').on('click', function(){
+		var jq_btn = $(this);
+		jq_btn.prop('disabled', true);
+		f_ajax('store', 'save', {
+			name: $('[form_group="store_shop"] [field_name="store_name"]').val(),
+			slug: $('[form_group="store_shop"] [field_name="store_slug"]').val(),
+			description: $('[form_group="store_shop"] [field_name="store_description"]').val(),
+			phone: $('[form_group="store_shop"] [field_name="store_phone"]').val(),
+			address: $('[form_group="store_shop"] [field_name="store_address"]').val()
+		}, function(data){
+			jq_btn.prop('disabled', false);
+			if (data['data'] && data['data']['error']) {
+				toastr.error(data['data']['error']);
+			} else {
+				location.reload();
+			}
+		});
+	});
 
 })
 
