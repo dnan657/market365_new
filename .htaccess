@@ -1,0 +1,14 @@
+RewriteEngine On
+
+RewriteCond %{REQUEST_URI} !^public
+RewriteRule ^(.*)$ route.php [L]
+
+ErrorDocument 401 "ERROR 401"
+ErrorDocument 402 "ERROR 402"
+ErrorDocument 403 "ERROR 403"
+ErrorDocument 404 "ERROR 404"
+ErrorDocument 500 "ERROR 500"
+
+#RewriteEngine On
+#RewriteCond %{REQUEST_URI} !/public/
+#RewriteRule ^(.*)$ route.php [L]

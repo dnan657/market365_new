@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -i \"function f_\" /c/Users/b/Desktop/market365/func/*.php)"
+    ]
+  }
+}
