@@ -1243,11 +1243,6 @@ function f_html_checkbox_echo($field_name, $checked_on=false, $title=''){
 }
 
 
-function mb_trim($string="") {
-	return preg_replace("/(^\\s+)|(\\s+$)/u", "", $string);
-}
-
-
 
 function f_arr_random_group($arr) {
     $groups = [];
