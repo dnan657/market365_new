@@ -1,74 +1,193 @@
 <?php
 
 
-// Набор функций
 $gl_api_func_json = [
 	"get"			=> "f_api_get_ads",
 	"get_list"		=> "f_api_get_list_ads",
-	//"get_line"	=> "f_api_get_ads_line",
-	//"get_top"		=> "f_api_get_ads_top",
-	
 	"save"			=> "f_api_ads_save",
-	//"get"			=> "f_api_ads_get",
 	"delete"		=> "f_api_ads_delete",
 ];
 
 
-
-// Сохранение о пользователи
+/**
+ * Список объявлений для ленты (реальная БД, пагинация, фильтры, превью из ads_img).
+ */
 function f_api_get_list_ads($ARGS){
-	
 	$response_json = [
 		'error' => '',
 		'error_code' => 0,
+		'arr_item' => [],
 	];
-	
-	// Date Fix для борьбы со сдвигом страниц при сортировке
-	
-	/*
-	$item_json = f_db_get_ads( ['_id_str' => $ARGS['_id_str']] );
-	
-	if( !isset($item_json) ){
-		$response_json['error'] = 'Not found';
-		return $response_json;
+
+	$page_num = max(1, intval($ARGS['page_num'] ?? 1));
+	$page_size = f_number_if_min_max(1, intval($ARGS['page_size'] ?? 20), 100);
+	$offset = ($page_num - 1) * $page_size;
+
+	$sort = preg_replace('/[^a-z_]/', '', $ARGS['sort'] ?? 'newest');
+	if( $sort === '' ){
+		$sort = 'newest';
 	}
-	*/
-	
-	$json_template = [
-		'html_img_src'		=> '/public/ad_default.jpg',
-		'title'				=> 'I will sell a new Luxury segment car directly from the salon',
-		'html_price'		=> f_number_space(20000) . ' $',
-		'html_city'			=> 'London',
-		'html_date'			=> 'html_date',
-		'html_favorite_on'	=> 'Today',
-		'html_link_ad'		=> f_page_link('ads_item') . '/' . f_seo_text_to_url('I will sell a new Luxury segment car directly from the salon', 100) . '-' . $i
+
+	$filter_json = [];
+	if( isset($ARGS['json_url_query']) ){
+		if( is_string($ARGS['json_url_query']) && $ARGS['json_url_query'] !== '' ){
+			$decoded = json_decode($ARGS['json_url_query'], true);
+			if( is_array($decoded) ){
+				$filter_json = $decoded;
+			}
+		}elseif( is_array($ARGS['json_url_query']) ){
+			$filter_json = $ARGS['json_url_query'];
+		}
+	}
+
+	static $ads_has_is_top = null;
+	if( $ads_has_is_top === null ){
+		$col = f_db_select("SHOW COLUMNS FROM `ads` LIKE 'is_top'");
+		$ads_has_is_top = !empty($col);
+	}
+
+	$order_top = $ads_has_is_top ? 'COALESCE(ads.`is_top`,0) DESC, ' : '';
+	if( $sort === 'price_asc' ){
+		$order_sql = 'ORDER BY ' . $order_top . ' ads.`price` ASC, ads.`_id` DESC';
+	}elseif( $sort === 'price_desc' ){
+		$order_sql = 'ORDER BY ' . $order_top . ' ads.`price` DESC, ads.`_id` DESC';
+	}else{
+		$order_sql = 'ORDER BY ' . $order_top . ' ads.`_create_date` DESC, ads.`_id` DESC';
+	}
+
+	$where = [
+		'ads.`delete_on` = 0',
+		'ads.`publication_on` = 1',
 	];
-	
-	$arr_item = [];
-	
-	for($i=0; $i<20; $i++){
-		$arr_item[] = $json_template;
+
+	$category_id = intval($ARGS['category_id'] ?? 0);
+	if( $category_id > 0 ){
+		$cat_ids = f_db_ads_category_descendant_ids($category_id);
+		if( $cat_ids ){
+			$in = implode(',', array_map('intval', $cat_ids));
+			$where[] = '(ads.`ads_category_id` IN (' . $in . ') OR ads.`ads_category_1_id` IN (' . $in . ') OR ads.`ads_category_2_id` IN (' . $in . ') OR ads.`ads_category_3_id` IN (' . $in . '))';
+		}
 	}
-	
-	$response_json['arr_item'] = $arr_item;
-	
+
+	$search_title = trim((string)($ARGS['ads_search_title'] ?? ''));
+	if( $search_title !== '' ){
+		$esc = f_db_sql_string_escape($search_title);
+		$where[] = "(ads.`title` LIKE '%" . $esc . "%' OR ads.`description` LIKE '%" . $esc . "%')";
+	}
+
+	$city_param = $ARGS['ads_search_city_id'] ?? '';
+	if( $city_param !== '' && $city_param !== null ){
+		$city_ids = array_filter(array_map('intval', explode(',', (string)$city_param)));
+		if( $city_ids ){
+			$where[] = 'ads.`city_id` IN (' . implode(',', $city_ids) . ')';
+		}
+	}
+
+	foreach( $filter_json as $key => $val ){
+		if( !is_numeric($key) ){
+			continue;
+		}
+		$key_id = intval($key);
+		if( $key_id <= 0 ){
+			continue;
+		}
+		if( is_array($val) && (isset($val['min']) || isset($val['max'])) ){
+			$sub = "SELECT `ads_item_id` FROM `ads_item_param_value` WHERE `ads_param_key_id` = " . $key_id . " AND (`_delete_on` IS NULL OR `_delete_on` = 0)";
+			if( isset($val['min']) && $val['min'] !== '' && $val['min'] !== null ){
+				$sub .= ' AND `value_int` >= ' . floatval($val['min']);
+			}
+			if( isset($val['max']) && $val['max'] !== '' && $val['max'] !== null ){
+				$sub .= ' AND `value_int` <= ' . floatval($val['max']);
+			}
+			$where[] = 'ads.`_id` IN (' . $sub . ')';
+		}elseif( is_array($val) ){
+			$vids = array_filter(array_map('intval', $val));
+			if( $vids ){
+				$where[] = 'ads.`_id` IN (SELECT `ads_item_id` FROM `ads_item_param_value` WHERE `ads_param_key_id` = ' . $key_id . ' AND `ads_param_value_id` IN (' . implode(',', $vids) . ') AND (`_delete_on` IS NULL OR `_delete_on` = 0))';
+			}
+		}elseif( is_scalar($val) && $val !== '' ){
+			$vid = intval($val);
+			if( $vid > 0 ){
+				$where[] = 'ads.`_id` IN (SELECT `ads_item_id` FROM `ads_item_param_value` WHERE `ads_param_key_id` = ' . $key_id . ' AND `ads_param_value_id` = ' . $vid . ' AND (`_delete_on` IS NULL OR `_delete_on` = 0))';
+			}
+		}
+	}
+
+	$where_sql = implode(' AND ', $where);
+
+	$sql_from = "
+		FROM `ads` AS ads
+		LEFT JOIN `city` AS ct ON ct.`_id` = ads.`city_id`
+		LEFT JOIN (
+			SELECT ai1.`ads_id`, ai1.`jpg_path`, ai1.`webp_path`
+			FROM `ads_img` ai1
+			INNER JOIN (
+				SELECT `ads_id`, MIN(`_id`) AS `mid`
+				FROM `ads_img`
+				GROUP BY `ads_id`
+			) t ON t.`mid` = ai1.`_id` AND t.`ads_id` = ai1.`ads_id`
+		) AS img ON img.`ads_id` = ads.`_id`
+		WHERE " . $where_sql . "
+	";
+
+	$sql_count = 'SELECT COUNT(DISTINCT ads.`_id`) AS `cnt` ' . $sql_from;
+	$count_row = f_db_select($sql_count);
+	$total = isset($count_row[0]['cnt']) ? intval($count_row[0]['cnt']) : 0;
+
+	$sql_data = "
+		SELECT
+			ads.`_id`,
+			ads.`title`,
+			ads.`price`,
+			ads.`price_currency`,
+			ads.`_create_date`,
+			ads.`city_id`,
+			img.`jpg_path` AS `thumb_jpg_path`,
+			img.`webp_path` AS `thumb_webp_path`,
+			ct.`title_en` AS `city_title_en`
+		" . $sql_from . "
+		" . $order_sql . "
+		LIMIT " . intval($offset) . ", " . intval($page_size) . "
+	";
+
+	$rows = f_db_select($sql_data);
+
+	foreach( $rows as $row ){
+		$title = $row['title'] ?? '';
+		$price = isset($row['price']) ? floatval($row['price']) : 0;
+		$curr = trim((string)($row['price_currency'] ?? ''));
+		if( $curr === '' ){
+			$curr = f_page_currency();
+		}
+		$city_label = trim((string)($row['city_title_en'] ?? ''));
+		if( $city_label === '' && !empty($row['city_id']) ){
+			$city_label = f_translate('City') . ' #' . intval($row['city_id']);
+		}
+		if( $city_label === '' ){
+			$city_label = f_translate('не указан');
+		}
+
+		$response_json['arr_item'][] = [
+			'html_img_src' => f_db_ads_img_public_url($row['thumb_jpg_path'] ?? '', $row['thumb_webp_path'] ?? ''),
+			'title' => $title,
+			'html_price' => f_number_space($price) . ' ' . $curr,
+			'html_city' => $city_label,
+			'html_date' => f_html_date_to_last_day($row['_create_date'] ?? ''),
+			'html_favorite_on' => 0,
+			'html_link_ad' => f_page_link('ads_item') . '/' . f_seo_text_to_url($title, 100) . '-' . intval($row['_id']),
+		];
+	}
+
+	$response_json['count_total'] = $total;
+	$response_json['page_num'] = $page_num;
+	$response_json['page_size'] = $page_size;
+	$response_json['has_more'] = ($offset + count($rows)) < $total;
+
 	return $response_json;
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-// Сохранение о пользователи
-function f_api_ads_get($ARGS){
+function f_api_get_ads($ARGS){
 	
 	$response_json = [
 		'error' => '',
@@ -77,7 +196,7 @@ function f_api_ads_get($ARGS){
 	
 	$item_json = f_db_get_ads( ['_id_str' => $ARGS['_id_str']] );
 	
-	if( !isset($item_json) ){
+	if( empty($item_json) || !is_array($item_json) ){
 		$response_json['error'] = 'Не найдена запись';
 		return $response_json;
 	}
@@ -115,8 +234,6 @@ function f_api_ads_get($ARGS){
 }
 
 
-
-// Сохранение о пользователи
 function f_api_ads_delete($ARGS){
 	
 	$response_json = [
@@ -124,18 +241,21 @@ function f_api_ads_delete($ARGS){
 		'error_code' => 0,
 	];
 	
-	if(f_user_get()['type'] == 'user'){
+	$u = f_user_get();
+	if( !$u ){
 		$response_json['error'] = 'Нет доступа';
+		return $response_json;
 	}
+	$is_admin = ($u['type'] == 'admin');
 	
 	$item_json = f_db_get_ads( ['_id_str' => $ARGS['_id_str']] );
 		
-	if( !isset($item_json) ){
+	if( empty($item_json) || !is_array($item_json) ){
 		$response_json['error'] = 'Не найдена запись';
 		return $response_json;
 	}
 	
-	if( $item_json['user_id'] != f_user_get()['_id'] && $is_admin ){
+	if( intval($item_json['user_id']) !== intval($u['_id']) && !$is_admin ){
 		$response_json['error'] = 'Нет доступа';
 		return $response_json;
 	}
@@ -145,7 +265,7 @@ function f_api_ads_delete($ARGS){
 	return $response_json;
 }
 
-// Сохранение о пользователи
+
 function f_api_ads_save($ARGS){
 	
 	$response_json = [
@@ -155,22 +275,23 @@ function f_api_ads_save($ARGS){
 	
 	
 	$is_new = $ARGS['_id_str'] ? false : true;
-	$is_admin = f_user_get()['type'] == 'admin' ? true : false;
-	
-	
-	if(f_user_get()['type'] == 'user'){
+	$u = f_user_get();
+	if( !$u ){
 		$response_json['error'] = 'No access';
+		return $response_json;
 	}
-		
+	$is_admin = ($u['type'] == 'admin');
+	
+	
 	if( $is_new == false ){
 		$item_json = f_db_get_ads( ['_id_str' => $ARGS['_id_str']] );
 		
-		if( !isset($item_json) ){
+		if( empty($item_json) || !is_array($item_json) ){
 			$response_json['error'] = 'No record found';
 			return $response_json;
 		}
 		
-		if( $item_json['user_id'] != f_user_get()['_id'] && !$is_admin ){
+		if( intval($item_json['user_id']) !== intval($u['_id']) && !$is_admin ){
 			$response_json['error'] = 'No access';
 			return $response_json;
 		}
@@ -181,7 +302,6 @@ function f_api_ads_save($ARGS){
 	$update_json['title'] = mb_substr( trim($ARGS['title']), 0, 100);
 	$update_json['description'] = mb_substr( trim($ARGS['description']), 0, 500);
 	$update_json['phone'] = mb_substr( f_number_parse($ARGS['phone']), 0, 100);
-	//$update_json['gps_address'] = mb_substr( trim($ARGS['gps_address']), 0, 100) ?: null;
 	$update_json['address'] = mb_substr( trim($ARGS['address']), 0, 100);
 	$update_json['publication_on'] = f_number_if_min_max( 0, intval($ARGS['publication_on']), 1 );
 	$update_json['publication_date'] = $update_json['publication_on'] == 0 ? NULL : f_datetime_current();
@@ -211,28 +331,22 @@ function f_api_ads_save($ARGS){
 	$update_json['price'] = f_number_if_min_max( 0, floatval($ARGS['price']), 1000000000000 );
 	
 	
-	
-	//$response_json['error'] = f_check_diap_number('Количество людей', $update_json['people_count_min'], $update_json['people_count_max']);
-	//if( $response_json['error'] ){ return $response_json; }
-	
-	
-	
 	if( mb_strlen($update_json['title']) == 0 ){
 		$response_json['error'] = 'Title cannot be empty';
 		return $response_json;
 	}
 	
-	//f_test( $update_json );
-	
 	$response_json['update'] = $update_json;
 	
 	if( $is_new == true ){
-		$update_json['_create_user_id'] = f_user_get()['_id'];
-		$update_json['user_id'] = f_user_get()['_id'];
-		//$response_json['redirect'] = '/ads/' . f_num_encode( f_db_insert('ads', $update_json) );
+		$update_json['_create_user_id'] = $u['_id'];
+		$update_json['user_id'] = $u['_id'];
+		$new_id = f_db_insert('ads', $update_json);
+		$response_json['_id_str'] = f_num_encode($new_id);
+		$response_json['redirect'] = f_page_link('ads_item') . '/' . f_seo_text_to_url($update_json['title'], 100) . '-' . intval($new_id);
 	}else{
 		
-		if( f_user_get()['type'] == 'admin' ){
+		if( $is_admin ){
 			$update_json['_create_date'] = f_db_value_str_date($ARGS['_create_date']);
 		}
 		
@@ -241,17 +355,6 @@ function f_api_ads_save($ARGS){
 	
 	return $response_json;
 }
-
-
-
-
-
-
-
-
-
-
-
 
 
 

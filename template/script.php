@@ -486,11 +486,12 @@ function f_ads_item_list_scroll_load(jq_ads_list){
 	let list_query = jq_ads_list.attr('ads_list_query');
 	let category_id = jq_ads_list.attr('ads_list_category_id');
 	
-	let json_query = f_ads_filter_param_get();
-	
     function f_ads_items_load() {
         if (gl_ads_items_is_loading) return; // Если уже идет загрузка, ничего не делаем
         if (gl_ads_items_is_end) return; // Если уже идет загрузка, ничего не делаем
+
+		let json_query = f_ads_filter_param_get();
+		let url_q = (typeof f_url_query_to_json === 'function') ? f_url_query_to_json() : {};
 
         gl_ads_items_is_loading = true; // Устанавливаем флаг загрузки
 		jq_ads_list.addClass('loading');
@@ -504,7 +505,10 @@ function f_ads_item_list_scroll_load(jq_ads_list){
 				'category_id': category_id,
 				'list_type': list_type,
 				'list_query': list_query,
-				'json_url_query': json_query
+				'json_url_query': json_query,
+				'ads_search_title': url_q['ads_search_title'] || '',
+				'ads_search_city_id': url_q['ads_search_city_id'] || '',
+				'sort': url_q['sort'] || ''
 			},
 			func_callback=function(json_data, status, xhr){
 				json_data = json_data['data'];
@@ -541,7 +545,16 @@ function f_ads_item_list_scroll_load(jq_ads_list){
 				f_ads_items_load
 			);
 		});
+		// Первая порция без ожидания скролла
+		f_ads_items_load();
 	}
+
+	jq_ads_list.off('ads_list_reload').on('ads_list_reload', function(){
+		gl_ads_items_page_num = 1;
+		gl_ads_items_is_end = false;
+		jq_ads_list.children('.item_ad').remove();
+		f_ads_items_load();
+	});
 }
 
 
@@ -635,6 +648,10 @@ jq_ads_list_param_filter.find('input, select').on('change input', function(){
 	let json_new_query = Object.assign({}, json_query, json_query_filter);
 	let new_query_url = f_url_json_to_query( json_new_query )
 	history.replaceState(null, "", new_query_url);
+})
+
+jq_ads_list_param_filter.find('input, select').on('change', function(){
+	$('[ads_list_type]').trigger('ads_list_reload');
 })
 
 

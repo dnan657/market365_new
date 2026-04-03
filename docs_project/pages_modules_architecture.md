@@ -7,7 +7,7 @@
 ## 1. Общий поток запроса
 
 1. **`.htaccess`** перенаправляет запросы (кроме `/public/`) в **`route.php`**.
-2. **`route.php`** поднимает сессию (`ssid`), заполняет **`$GLOBALS['WEB_JSON']`** (пути, ключи внешних сервисов, `page_link`, настройки загрузок), подключает **`func/f_db.php`**, **`f_db_get.php`**, **`f_default.php`**, **`f_email_send.php`**. Для **`/api/dev/db_init`** (до разбора маршрутов) подключается **`func/f_db_init.php`** и выполняются миграции БД (текстовый ответ).
+2. **`route.php`** сначала собирает **`$MARKET365_CONFIG`**: **`array_merge`** из **`config.defaults.php`** (в репозитории) и при наличии файла **`config.php`** (локально/на сервере, в **`.gitignore`**). Затем поднимает сессию (`ssid`), заполняет **`$GLOBALS['WEB_JSON']`** (пути, **`api_json`** / **`email_json`** из конфига, `page_link`, настройки загрузок), подключает **`func/f_db.php`**, **`f_db_get.php`**, **`f_default.php`**, **`f_email_send.php`**. Для **`/api/dev/db_init`** (до разбора маршрутов) подключается **`func/f_db_init.php`** и выполняются миграции БД (текстовый ответ).
 3. URI без ведущего слэша разбирается в **`uri_clean`** и **`uri_dir_arr`**.
 4. Подбирается первая подходящая запись из **`$arr_json_route`** (regex → файл страницы).
    - При **`user_check === true`** и отсутствии входа — редирект на **`/`**.
@@ -16,6 +16,21 @@
 6. Иначе контент страницы попадает в **`$WEB_PAGE_HTML`**, затем выводится через **`template/page.php`** (шапка, `nav_top`, контент, боковая реклама при `ads_side`, `footer`, **`template/script.php`**).
 
 **Константы URL:** массив **`page_link`** в **`route.php`**.
+
+### 1.1. Секреты и внешние сервисы (`config.defaults.php` / `config.php`)
+
+| Файл | Роль |
+|------|------|
+| **`config.defaults.php`** | Обязательный шаблон в git: те же ключи, что у секретов, значения — пустые строки. Позволяет запускать приложение без локального **`config.php`** (без падения с 500). |
+| **`config.php`** | Реальные ключи и пароли; **не коммитить** (запись в корневом **`.gitignore`**). Перекрывает соответствующие поля из defaults. |
+
+Поля конфига маппятся в **`WEB_JSON['api_json']`**: Stripe (`stripe_public`, `stripe_secret`), reCAPTCHA v2/v3, Google OAuth (`google_oauth_*`). Почта **`WEB_JSON['email_json']['main']`**: `login` / `pass` из **`email_main_login`**, **`email_main_pass`**.
+
+**Деплой:** после **`git clone` / `git pull`** на сервер нужно один раз положить **`config.php`** (скопировать с рабочей машины или собрать вручную). Иначе платежи, OAuth, reCAPTCHA и SMTP не заработают, хотя сайт отдаёт страницы.
+
+**MySQL:** параметры подключения по-прежнему задаются в **`func/f_db.php`** внутри **`f_db_link()`**, не в **`config.php`**.
+
+**GitHub:** секреты не держать в **`route.php`** и не коммитить **`config.php`** — иначе срабатывает push protection (secret scanning).
 
 ---
 
@@ -134,7 +149,7 @@
 | Страницы | **`f_db_*`**, **`f_db_get_*`**, **`f_user_*`**, **`f_template`**, **`f_page_*`**, **`f_translate`**, при необходимости клиентский **`f_ajax`**. |
 | Шаблоны | Bootstrap, jQuery, **`template/script.php`**. |
 | Почта | **`f_email_send`**, PHPMailer. |
-| Схема БД | **`schema.sql`**. |
+| Схема БД | **`docs_project/schema_db.sql`**. |
 
 ---
 
@@ -151,9 +166,12 @@
 | **`docs_project/api_modules.md`** | Все модули **`api/*.php`**, query, таблицы, известные баги. |
 | **`docs_project/php_functions_reference.md`** | Справочник PHP-функций **`func/`** и локальных в **`page/`**. |
 | **`docs_project/custom_js_functions.md`** | Клиентские функции в **`template/script.php`** и др. |
+| **`config.defaults.php`** (корень проекта) | Шаблон ключей API/почты для git; **`config.php`** — локальные значения, не в репозитории. |
 
 ---
 
 ## 8. Обновление документации
 
 При добавлении страницы: маршрут в **`route.php`**, при AJAX — вызов **`/api/{method}/{query}`** и строка в разделе **2.2** этого файла.
+
+При добавлении новых секретных ключей: объявить ключ в **`config.defaults.php`** (пустое значение), пробросить в **`route.php`** в нужный блок **`WEB_JSON`**, задать реальное значение только в локальном **`config.php`**.

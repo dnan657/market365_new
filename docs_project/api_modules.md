@@ -6,16 +6,18 @@
 
 Подробнее про формат запроса с фронта: **`f_ajax()`** в `template/script.php` (POST, `FormData`, URL `https://{host}/api/{method}/{query}`).
 
+Ключи reCAPTCHA и прочие параметры внешних сервисов для проверок на стороне API читаются из **`$GLOBALS['WEB_JSON']['api_json']`**, который наполняется из **`config.defaults.php`** + **`config.php`** при старте **`route.php`** (см. **`pages_modules_architecture.md`**, § **1.1**).
+
 ---
 
 ## Общая таблица модулей
 
 | Файл | Query → обработчик | Назначение |
 |------|-------------------|------------|
-| **`api/ads.php`** | `get_list` → `f_api_get_list_ads` | Сейчас возвращает **заглушечные** повторяющиеся карточки (цикл из шаблона), не реальная БД. |
-| | `save` → `f_api_ads_save` | Создание/обновление объявления в таблице **`ads`**, проверки полей, GPS, права (в коде есть противоречивые проверки `type == 'user'`). |
-| | `delete` → `f_api_ads_delete` | Мягкое удаление (`delete_on`), проверка владельца; в условии используется **`$is_admin`** без явного определения — риск предупреждений PHP. |
-| | `get` → строка **`f_api_get_ads`** | В массиве указано имя **`f_api_get_ads`**, а реализована функция **`f_api_ads_get`** — вызов **`/api/ads/get`** с высокой вероятностью **сломан**. |
+| **`api/ads.php`** | `get_list` → `f_api_get_list_ads` | Реальная выборка из **`ads`**: **`delete_on=0`**, **`publication_on=1`**, JOIN превью из **`ads_img`** (первое по `_id`), **`city`**, пагинация **`page_num`** / **`page_size`**, сортировка **`sort`** (`newest` / `price_asc` / `price_desc`), при наличии колонки **`is_top`** — приоритет сверху. Фильтры: **`category_id`** (дерево **`ads_category`** через **`f_db_ads_category_descendant_ids`**), **`ads_search_title`**, **`ads_search_city_id`**, динамика из **`json_url_query`** по **`ads_item_param_value`**. |
+| | `save` → `f_api_ads_save` | Создание/обновление объявления в **`ads`**; для новой записи вызывается **`f_db_insert`**, в ответе **`_id_str`**, **`redirect`**. |
+| | `delete` → `f_api_ads_delete` | Мягкое удаление (`delete_on`); доступ у владельца или **admin**. |
+| | `get` → **`f_api_get_ads`** | Одна карточка по **`_id_str`** через **`f_db_get_ads`**. |
 | **`api/user.php`** | `find` → `f_api_user_find` | Поиск в таблице **`user`**; доступ только **`admin`**; в ответе **`type_str`** — значение **`user_type`** (или **`type`**). |
 | | `save` → `f_api_user_save` | Обновление **`user`**; для не-админа при **`save_scope=password`** — только смена пароля (проверка **`password_old`**). Админ может менять **`user_type`** (синхронизируется с **`type`**). |
 | | `login_create` / `login_edit` | Создание/правка записей в **`user`** (вспомогательные учётные записи с логином **`@...`**). |
@@ -32,7 +34,7 @@
 ### `api/ads.php`
 
 - **Использует:** `f_db_get_ads`, `f_db_update_smart`, `f_db_insert` (закомментирован сценарий редиректа), `f_user_get`, `f_gps_validate`, `f_valid_type_id`, `f_number_if_min_max`, `f_number_parse`, `f_datetime_current`, `f_db_value_str_date`, `f_seo_text_to_url`, `f_num_encode`, `f_page_link`, `f_number_space`.
-- **`get_list`:** отдаёт массив **`arr_item`** из одного шаблона (для вёрстки ленты на `ads_list`).
+- **`get_list`:** отдаёт **`arr_item`** для **`f_ads_item_line_make`** (`html_img_src`, `title`, `html_price`, `html_city`, `html_date`, `html_favorite_on`, `html_link_ad`), плюс **`count_total`**, **`has_more`**, **`page_num`**, **`page_size`**.
 - **`save`:** длинный набор полей под смешанную модель (объявление + учебные поля вроде `lang_edu_type_arr_id`).
 
 ### `api/user.php`

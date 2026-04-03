@@ -865,4 +865,61 @@ function f_db_get_upload($data_json=[], $limit=1){
 }
 
 
+/**
+ * Собирает ID выбранной категории и всех потомков в дереве ads_category (parent_1_id / parent_2_id / parent_3_id / parent_id).
+ */
+function f_db_ads_category_descendant_ids($root_id){
+	$root_id = intval($root_id);
+	if( $root_id <= 0 ){
+		return [];
+	}
+	$all = f_db_select("SELECT `_id`, `parent_1_id`, `parent_2_id`, `parent_3_id`, `parent_id` FROM `ads_category` WHERE `hide_on` = 0");
+	if( !$all ){
+		return [ $root_id ];
+	}
+	$ids = [ $root_id ];
+	for( $guard = 0; $guard < 100; $guard++ ){
+		$added = false;
+		foreach( $all as $c ){
+			$cid = intval($c['_id']);
+			if( in_array($cid, $ids, true) ){
+				continue;
+			}
+			$p1 = isset($c['parent_1_id']) && $c['parent_1_id'] !== null && $c['parent_1_id'] !== '' ? intval($c['parent_1_id']) : 0;
+			$p2 = isset($c['parent_2_id']) && $c['parent_2_id'] !== null && $c['parent_2_id'] !== '' ? intval($c['parent_2_id']) : 0;
+			$p3 = isset($c['parent_3_id']) && $c['parent_3_id'] !== null && $c['parent_3_id'] !== '' ? intval($c['parent_3_id']) : 0;
+			$pid = isset($c['parent_id']) && $c['parent_id'] !== null && $c['parent_id'] !== '' ? intval($c['parent_id']) : 0;
+			if( ($p1 && in_array($p1, $ids, true)) || ($p2 && in_array($p2, $ids, true)) || ($p3 && in_array($p3, $ids, true)) || ($pid && in_array($pid, $ids, true)) ){
+				$ids[] = $cid;
+				$added = true;
+			}
+		}
+		if( !$added ){
+			break;
+		}
+	}
+	return array_values( array_unique( $ids ) );
+}
+
+
+/**
+ * Публичный URL превью из строки пути ads_img (jpg/webp).
+ */
+function f_db_ads_img_public_url($jpg_path, $webp_path = ''){
+	$p = $jpg_path ?: $webp_path;
+	if( $p === null || $p === '' ){
+		return '/public/ad_default.jpg';
+	}
+	if( preg_match('#^https?://#i', $p) ){
+		return $p;
+	}
+	$p = str_replace('\\', '/', $p);
+	$p = ltrim($p, '/');
+	if( strncmp($p, 'public/', 7) === 0 ){
+		return '/' . $p;
+	}
+	return '/public/upload/img/' . $p;
+}
+
+
 ?>

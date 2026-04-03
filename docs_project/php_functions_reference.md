@@ -4,6 +4,16 @@
 
 Соглашение имён: префикс **`f_`** — «своя» функция; **`f_db_*`** — работа с БД; **`f_api_*`** — обработчики JSON API.
 
+### Загрузка конфигурации в `route.php`
+
+| Элемент | Назначение |
+|---------|------------|
+| **`config.defaults.php`** | Возвращает массив ключей API/почты с пустыми значениями; файл в репозитории. |
+| **`config.php`** | Опциональный локальный массив с реальными значениями; в **`.gitignore`**. |
+| **`$MARKET365_CONFIG`** | **`array_merge(defaults, config.php или [])`** в начале **`route.php`**; далее поля попадают в **`WEB_JSON['api_json']`** и **`WEB_JSON['email_json']['main']`**. |
+
+Поток запроса и деплой **`config.php`**: **`pages_modules_architecture.md`**, раздел **1.1**.
+
 ---
 
 ## `func/f_default.php` — вывод, страница, шаблоны
@@ -159,6 +169,8 @@
 | **`f_html_date_to_last_day`** | Вспомогательная дата для UI. |
 | **`f_db_get_label_ads`** | Подписи/лейблы для объявлений. |
 | **`f_db_get_list_ads`**, **`f_db_get_ads`** | Списки и одна карточка объявления (тяжёлые JOIN в SQL). |
+| **`f_db_ads_category_descendant_ids`** | ID категории **`ads_category`** и всех потомков (по `parent_1_id` / `parent_2_id` / `parent_3_id` / `parent_id`). |
+| **`f_db_ads_img_public_url`** | Публичный URL превью из путей **`ads_img`** (`jpg_path` / `webp_path`). |
 | **`f_db_get_list_upload`**, **`f_db_get_upload`** | Метаданные загрузок. |
 
 ---

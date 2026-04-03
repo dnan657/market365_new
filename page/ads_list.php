@@ -325,37 +325,7 @@ f_page_title_set( $page_title );
 			<h2 class="sub_title_head_page  mt-4  mb-2">
 				<?php f_translate_echo( 'We found 20 ads' ); ?>
 			</h2>
-			<div class="list_line_ads"  ads_list_type="line" ads_list_query="recomendation" ads_list_category_id="<?php f_echo_html( $category_end_json['_id'] ); ?>">
-				<?php
-					for($i=0; $i<20; $i++){
-				?>
-					<div class="item_ad">
-						<a href="#" class="body_item_ad">
-							
-							<img class="img_item_ad" src="/public/ad_default.jpg">
-							<div class="text_item_ad">
-								<div class="d-flex  justify-content-between">
-									<div class="title_item_ad">
-										I will sell a new Luxury segment car directly from the salon
-									</div>
-									<div class="btn_favorite_item_ad   bi bi-heart"></div>
-								</div>
-								<div class="price_item_ad">
-									20 000 $
-								</div>
-								<div class="city_item_ad">
-									London
-								</div>
-								<div class="date_item_ad">
-									Today
-									<!--21 июля 2024 г.-->
-								</div>
-							</div>
-						</a>
-					</div>
-				<?php
-					}
-				?>
+			<div class="list_line_ads"  ads_list_type="line" ads_list_query="recomendation" ads_list_category_id="<?php f_echo_html( isset($category_end_json['_id']) ? $category_end_json['_id'] : '' ); ?>">
 			</div>
 			
 		</div>
