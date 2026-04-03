@@ -153,7 +153,7 @@
 
 | Функция | Назначение |
 |---------|------------|
-| **`f_db_init`** | Создаёт **`_db_migrations`**, применяет зарегистрированные **`ALTER`/`UPDATE`** (колонки **`user.user_type`**, **`phone_verified`**, **`accepted_terms`** и т.д.). Вызывается по **`GET/POST /api/dev/db_init`** из **`route.php`**. |
+| **`f_db_init`** | Создаёт **`_db_migrations`**, применяет зарегистрированные миграции (**`ALTER`/`UPDATE`**, таблицы **`chat`**, **`chat_message`**, **`user_favorite`** и т.д.). Вызывается по **`GET/POST /api/dev/db_init`** из **`route.php`**. |
 
 ---
 
@@ -171,6 +171,9 @@
 | **`f_db_get_list_ads`**, **`f_db_get_ads`** | Списки и одна карточка объявления (тяжёлые JOIN в SQL). |
 | **`f_db_ads_category_descendant_ids`** | ID категории **`ads_category`** и всех потомков (по `parent_1_id` / `parent_2_id` / `parent_3_id` / `parent_id`). |
 | **`f_db_ads_img_public_url`** | Публичный URL превью из путей **`ads_img`** (`jpg_path` / `webp_path`). |
+| **`f_db_table_exists`** | Проверка наличия таблицы в текущей БД (кэш на запрос). |
+| **`f_db_user_unread_chat_count`** | Количество непрочитанных входящих сообщений пользователя (**`chat`** / **`chat_message`**). |
+| **`f_db_user_favorite_count`** | Количество записей в **`user_favorite`** для пользователя. |
 | **`f_db_get_list_upload`**, **`f_db_get_upload`** | Метаданные загрузок. |
 
 ---
@@ -188,7 +191,7 @@
 
 См. детальный разбор эндпоинтов и зависимостей: **`docs_project/api_modules.md`**.
 
-Кратко: **`f_api_get_list_ads`**, **`f_api_ads_save`**, **`f_api_ads_delete`**, **`f_api_ads_get`** (несовпадение имени в роутере), **`f_api_user_*`**, **`f_api_upload_file`**, **`f_upload_error`**, **`f_image_compress_save`**, **`f_file_category`**, **`f_api_pay_*`**, **`f_api_subscription_*`**, **`f_api_cron_expired`**.
+Кратко: **`f_api_get_list_ads`**, **`f_api_ads_save`**, **`f_api_ads_delete`**, **`f_api_get_ads`**, **`f_api_user_*`**, **`f_api_upload_file`**, **`f_upload_error`**, **`f_image_compress_save`**, **`f_file_category`**, **`f_api_pay_*`**, **`f_api_subscription_*`**, **`f_api_cron_expired`**, **`f_api_chat_*`**, **`f_api_favorite_*`**.
 
 ---
 

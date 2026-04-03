@@ -899,3 +899,43 @@ ALTER TABLE `user_data`
   ADD KEY `user_id` (`user_id`),
   ADD KEY `type` (`type`),
   ADD KEY `data` (`data`);
+
+-- --------------------------------------------------------
+-- Таблицы чата и избранного (см. миграции func/f_db_init.php)
+-- --------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `chat` (
+  `_id` bigint NOT NULL AUTO_INCREMENT,
+  `_create_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `ads_id` bigint NOT NULL,
+  `user_buyer_id` bigint NOT NULL,
+  `user_seller_id` bigint NOT NULL,
+  PRIMARY KEY (`_id`),
+  UNIQUE KEY `ux_chat_ads_buyer_seller` (`ads_id`,`user_buyer_id`,`user_seller_id`),
+  KEY `idx_chat_buyer` (`user_buyer_id`),
+  KEY `idx_chat_seller` (`user_seller_id`),
+  KEY `idx_chat_ads` (`ads_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `chat_message` (
+  `_id` bigint NOT NULL AUTO_INCREMENT,
+  `_create_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `chat_id` bigint NOT NULL,
+  `user_sender_id` bigint NOT NULL,
+  `message_text` text NOT NULL,
+  `is_read` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`_id`),
+  KEY `idx_cm_chat` (`chat_id`),
+  KEY `idx_cm_sender` (`user_sender_id`),
+  KEY `idx_cm_chat_read` (`chat_id`,`is_read`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `user_favorite` (
+  `_id` bigint NOT NULL AUTO_INCREMENT,
+  `_create_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `user_id` bigint NOT NULL,
+  `ads_id` bigint NOT NULL,
+  PRIMARY KEY (`_id`),
+  UNIQUE KEY `ux_fav_user_ads` (`user_id`,`ads_id`),
+  KEY `idx_fav_ads` (`ads_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

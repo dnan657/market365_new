@@ -31,6 +31,45 @@ function f_db_init() {
 			ADD COLUMN IF NOT EXISTS `phone_verified` TINYINT(1) NOT NULL DEFAULT 0,
 			ADD COLUMN IF NOT EXISTS `accepted_terms` TINYINT(1) NOT NULL DEFAULT 0;
 		",
+		'005_chat_table' => "
+			CREATE TABLE IF NOT EXISTS `chat` (
+				`_id` BIGINT NOT NULL AUTO_INCREMENT,
+				`_create_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				`ads_id` BIGINT NOT NULL,
+				`user_buyer_id` BIGINT NOT NULL,
+				`user_seller_id` BIGINT NOT NULL,
+				PRIMARY KEY (`_id`),
+				UNIQUE KEY `ux_chat_ads_buyer_seller` (`ads_id`, `user_buyer_id`, `user_seller_id`),
+				KEY `idx_chat_buyer` (`user_buyer_id`),
+				KEY `idx_chat_seller` (`user_seller_id`),
+				KEY `idx_chat_ads` (`ads_id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+		",
+		'006_chat_message_table' => "
+			CREATE TABLE IF NOT EXISTS `chat_message` (
+				`_id` BIGINT NOT NULL AUTO_INCREMENT,
+				`_create_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				`chat_id` BIGINT NOT NULL,
+				`user_sender_id` BIGINT NOT NULL,
+				`message_text` TEXT NOT NULL,
+				`is_read` TINYINT(1) NOT NULL DEFAULT 0,
+				PRIMARY KEY (`_id`),
+				KEY `idx_cm_chat` (`chat_id`),
+				KEY `idx_cm_sender` (`user_sender_id`),
+				KEY `idx_cm_chat_read` (`chat_id`, `is_read`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+		",
+		'007_user_favorite_table' => "
+			CREATE TABLE IF NOT EXISTS `user_favorite` (
+				`_id` BIGINT NOT NULL AUTO_INCREMENT,
+				`_create_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				`user_id` BIGINT NOT NULL,
+				`ads_id` BIGINT NOT NULL,
+				PRIMARY KEY (`_id`),
+				UNIQUE KEY `ux_fav_user_ads` (`user_id`, `ads_id`),
+				KEY `idx_fav_ads` (`ads_id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+		",
 	];
 
 	$applied = 0;

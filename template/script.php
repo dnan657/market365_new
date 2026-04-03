@@ -1096,6 +1096,35 @@ function f_ajax(module="", query="", data_json={}, func_callback=function(data, 
 	})
 }
 
+document.addEventListener('DOMContentLoaded', function () {
+	if (!document.querySelector('.js-sync-chat-unread')) {
+		return;
+	}
+	function f_nav_sync_chat_unread() {
+		f_ajax('chat', 'unread_count', {}, function (res) {
+			if (!res || !res.data) {
+				return;
+			}
+			var d = res.data;
+			if (d.error) {
+				return;
+			}
+			var n = parseInt(d.count, 10) || 0;
+			$('.js-chat-unread-badge').each(function () {
+				var $b = $(this);
+				if (n > 0) {
+					$b.text(String(n)).css('display', '');
+				} else {
+					$b.text('').hide();
+				}
+			});
+		});
+	}
+	window.f_nav_sync_chat_unread = f_nav_sync_chat_unread;
+	f_nav_sync_chat_unread();
+	setInterval(f_nav_sync_chat_unread, 45000);
+});
+
 
 
 </script>

@@ -228,6 +228,13 @@
 
 </style>
 
+<?php
+$gl_nav_u = f_user_get();
+$gl_badge_notif = (is_array($gl_nav_u) && !empty($gl_nav_u['html_count_notifications'])) ? $gl_nav_u['html_count_notifications'] : '';
+$gl_badge_msg = (is_array($gl_nav_u) && !empty($gl_nav_u['html_count_messages'])) ? $gl_nav_u['html_count_messages'] : '';
+$gl_badge_fav = (is_array($gl_nav_u) && !empty($gl_nav_u['html_count_favorites'])) ? $gl_nav_u['html_count_favorites'] : '';
+?>
+
 <div class="nav_top">
 	<div  class="container  body_nav_top">
 	
@@ -248,7 +255,7 @@
 			
 			<a href="<?php f_page_link_echo( f_user_check() == false ? 'login' : 'user_notifications'); ?>">
 				<i class="bi bi-bell  me-0" style="transform: scale(1.1);">
-					<?php f_echo( f_user_get()['html_count_notifications'] ? '<div class="count_icon">'. f_user_get()['html_count_notifications'] .'</div>' : '' ); ?>
+					<?php f_echo( $gl_badge_notif ? '<div class="count_icon">' . $gl_badge_notif . '</div>' : '' ); ?>
 				</i>
 			</a>
 			
@@ -256,22 +263,22 @@
 		
 		<div class="right_nav_top  mobile_hide">
 			
-			<a href="<?php f_page_link_echo( f_user_check() == false ? 'login' : 'user_messages'); ?>"  title="<?php f_translate_echo( 'Messages' ); ?>">
+			<a href="<?php f_page_link_echo( f_user_check() == false ? 'login' : 'user_messages'); ?>"  title="<?php f_translate_echo( 'Messages' ); ?>" class="<?php echo f_user_check() ? 'js-sync-chat-unread' : ''; ?>">
 				<i class="bi bi-chat">
-					<?php f_echo( f_user_get()['html_count_messages'] ? '<div class="count_icon">'. f_user_get()['html_count_messages'] .'</div>' : '' ); ?>
+					<?php f_echo( $gl_badge_msg ? '<div class="count_icon js-chat-unread-badge">' . $gl_badge_msg . '</div>' : '<div class="count_icon js-chat-unread-badge" style="display:none"></div>' ); ?>
 				</i>
 				<?php f_translate_echo( 'Messages' ); ?>
 			</a>
 			
 			<a href="<?php f_page_link_echo( f_user_check() == false ? 'login' : 'user_favorites'); ?>"  title="<?php f_translate_echo( 'Favorites' ); ?>">
 				<i class="bi bi-heart  m-0  pt-1">
-					<?php f_echo( f_user_get()['html_count_favorites'] ? '<div class="count_icon">'. f_user_get()['html_count_favorites'] .'</div>' : '' ); ?>
+					<?php f_echo( $gl_badge_fav ? '<div class="count_icon">' . $gl_badge_fav . '</div>' : '' ); ?>
 				</i>
 			</a>
 			
 			<a href="<?php f_page_link_echo( f_user_check() == false ? 'login' : 'user_notifications'); ?>"  title="<?php f_translate_echo( 'Notifications' ); ?>">
 				<i class="bi bi-bell  m-0  pt-1">
-					<?php f_echo( f_user_get()['html_count_notifications'] ? '<div class="count_icon">'. f_user_get()['html_count_notifications'] .'</div>' : '' ); ?>
+					<?php f_echo( $gl_badge_notif ? '<div class="count_icon">' . $gl_badge_notif . '</div>' : '' ); ?>
 				</i>
 			</a>
 			
@@ -388,9 +395,9 @@
 			<span><?php f_translate_echo( 'Home' ); ?></span>
 		</a>
 		
-		<a href="<?php f_page_link_echo( f_user_check() == false ? 'login' : 'user_messages'); ?>">
+		<a href="<?php f_page_link_echo( f_user_check() == false ? 'login' : 'user_messages'); ?>" class="<?php echo f_user_check() ? 'js-sync-chat-unread' : ''; ?>">
 			<i class="bi bi-chat<?php f_echo_html('/'.$GLOBALS['WEB_JSON']['uri_clean'] != f_page_link('user_messages') ? '' : '-fill'); ?>">
-				<?php f_echo( f_user_get()['html_count_messages'] ? '<div class="count_icon">'. f_user_get()['html_count_messages'] .'</div>' : '' ); ?>
+				<?php f_echo( $gl_badge_msg ? '<div class="count_icon js-chat-unread-badge">' . $gl_badge_msg . '</div>' : '<div class="count_icon js-chat-unread-badge" style="display:none"></div>' ); ?>
 			</i>
 			<span><?php f_translate_echo( 'Messages' ); ?></span>
 		</a>

@@ -427,6 +427,53 @@ function f_db_get_pay($sql_where, $sql_continue=""){
 }
 
 
+/**
+ * Проверка существования таблицы в текущей БД (кэш на запрос).
+ */
+function f_db_table_exists($table){
+	static $cache = [];
+	$t = preg_replace('/[^a-z0-9_]/i', '', (string)$table);
+	if( $t === '' ){
+		return false;
+	}
+	if( array_key_exists($t, $cache) ){
+		return $cache[$t];
+	}
+	$row = f_db_select(
+		'SELECT 1 AS `x` FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '
+		. f_db_sql_value($t) . ' LIMIT 1'
+	);
+	$cache[$t] = !empty($row);
+	return $cache[$t];
+}
+
+
+function f_db_user_unread_chat_count($user_id){
+	$user_id = intval($user_id);
+	if( $user_id <= 0 || !f_db_table_exists('chat') || !f_db_table_exists('chat_message') ){
+		return 0;
+	}
+	$sql = "
+		SELECT COUNT(*) AS `c` FROM `chat_message` cm
+		INNER JOIN `chat` c ON c.`_id` = cm.`chat_id`
+		WHERE (c.`user_buyer_id` = $user_id OR c.`user_seller_id` = $user_id)
+		AND cm.`user_sender_id` <> $user_id
+		AND cm.`is_read` = 0
+	";
+	$r = f_db_select($sql);
+	return isset($r[0]['c']) ? intval($r[0]['c']) : 0;
+}
+
+
+function f_db_user_favorite_count($user_id){
+	$user_id = intval($user_id);
+	if( $user_id <= 0 || !f_db_table_exists('user_favorite') ){
+		return 0;
+	}
+	$r = f_db_select('SELECT COUNT(*) AS `c` FROM `user_favorite` WHERE `user_id` = ' . $user_id);
+	return isset($r[0]['c']) ? intval($r[0]['c']) : 0;
+}
+
 
 function f_db_get_user_list($sql_where, $sql_continue=""){
 	
@@ -467,8 +514,11 @@ function f_db_get_user_list($sql_where, $sql_continue=""){
 		$data_arr[$i]['html_name'] = ( $data_arr[$i]['name'] != '' ) ? $data_arr[$i]['name'] : explode('@', $data_arr[$i]['email'])[0] ;
 		$data_arr[$i]['html_count_balance'] = '100 ' . f_page_currency();
 		$data_arr[$i]['html_count_notifications'] = '5';
-		$data_arr[$i]['html_count_messages'] = '12';
-		$data_arr[$i]['html_count_favorites'] = '120';
+		$uid_row = intval($data_arr[$i]['_id']);
+		$n_unread = f_db_user_unread_chat_count($uid_row);
+		$data_arr[$i]['html_count_messages'] = $n_unread > 0 ? (string)$n_unread : '';
+		$n_fav = f_db_user_favorite_count($uid_row);
+		$data_arr[$i]['html_count_favorites'] = $n_fav > 0 ? (string)$n_fav : '';
 		$data_arr[$i]['html_phone'] = f_phone_beauty($data_arr[$i]['phone']);
 		
 		$data_arr[$i]['html_create_date'] = f_html_date_to_last_day( $data_arr[$i]['_create_date'] );

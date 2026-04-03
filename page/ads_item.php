@@ -1,36 +1,91 @@
 <?php
 
-//$uri_page = $WEB_JSON["uri_dir_arr"][0]; // ads
-//$uri_type = $WEB_JSON["uri_dir_arr"][1]; // item
-$uri_item = $WEB_JSON["uri_dir_arr"][2]; // TITLE-ID ==== /ads/item/ID
-
+$uri_item = $WEB_JSON['uri_dir_arr'][2] ?? '';
 $uri_arr_item = explode('-', $uri_item);
-$uri_id_item = end( $uri_arr_item );
-$uri_title_item = implode('-', array_slice($uri_arr_item, 0, -1));
+$uri_id_item = end($uri_arr_item);
+$_id_item = intval($uri_id_item);
 
-$_id_item = intval( $uri_id_item );
+$ad_row = f_db_select(
+	'SELECT a.*, c.`title_en` AS `city_title_en`
+	FROM `ads` a
+	LEFT JOIN `city` c ON c.`_id` = a.`city_id`
+	WHERE a.`_id` = ' . intval($_id_item) . ' AND a.`delete_on` = 0
+	LIMIT 1'
+);
+$ad_found = !empty($ad_row);
+$ad = $ad_found ? $ad_row[0] : [];
 
-// Поиск в БД - объявления
+$ad_imgs = [];
+if( $ad_found ){
+	$ad_imgs = f_db_select(
+		'SELECT `jpg_path`, `webp_path` FROM `ads_img` WHERE `ads_id` = ' . intval($_id_item) . ' ORDER BY `_id` ASC'
+	);
+}
+if( empty($ad_imgs) ){
+	$ad_imgs = [ ['jpg_path' => '', 'webp_path' => ''] ];
+}
 
-// Проверка - еслт не совпадает seo-title-ads с uri_title_item
-	// Формируем uri с верным seo-title-ads и перенаправляем пользователя туда
+$item_json = [ 'zoom' => 15, 'lat' => 51.46718251196423, 'lng' => -0.08963604841304516 ];
+if( $ad_found ){
+	$gp = f_db_select(
+		'SELECT ST_Y(`gps_point`) AS `la`, ST_X(`gps_point`) AS `ln` FROM `ads` WHERE `_id` = ' . intval($_id_item) . ' AND `gps_point` IS NOT NULL LIMIT 1'
+	);
+	if( !empty($gp) && isset($gp[0]['la']) && $gp[0]['la'] !== null && $gp[0]['la'] !== '' ){
+		$item_json['lat'] = floatval($gp[0]['la']);
+		$item_json['lng'] = floatval($gp[0]['ln']);
+	}
+}
 
-$item_json = [];
+$page_title = $ad_found ? (string)($ad['title'] ?? '') : f_translate('Ad not found');
+$ad_description = $ad_found ? (string)($ad['description'] ?? '') : '';
+$ad_price = $ad_found ? floatval($ad['price'] ?? 0) : 0;
+$ad_currency = $ad_found ? trim((string)($ad['price_currency'] ?? '')) : '';
+if( $ad_currency === '' ){
+	$ad_currency = f_page_currency();
+}
+$city_label = $ad_found ? trim((string)($ad['city_title_en'] ?? '')) : '';
+if( $city_label === '' && $ad_found && !empty($ad['city_id']) ){
+	$city_label = f_translate('City') . ' #' . intval($ad['city_id']);
+}
+if( $city_label === '' ){
+	$city_label = '—';
+}
 
-$item_json['zoom'] = 15;
-$item_json['lat'] = 51.46718251196423;
-$item_json['lng'] = -0.08963604841304516;
+$seller_json = null;
+if( $ad_found && !empty($ad['user_id']) ){
+	$seller_json = f_db_get_user(['_id' => intval($ad['user_id'])]);
+}
+$seller_display = '—';
+if( is_array($seller_json) ){
+	$seller_display = trim((string)($seller_json['name'] ?? ''));
+	if( $seller_display === '' && !empty($seller_json['email']) ){
+		$seller_display = explode('@', (string)$seller_json['email'])[0];
+	}
+}
 
+$me = f_user_get();
+$is_logged = is_array($me) && !empty($me['_id']);
+$is_owner = $is_logged && $ad_found && intval($ad['user_id'] ?? 0) === intval($me['_id']);
+$can_message = $is_logged && $ad_found && !$is_owner && intval($ad['user_id'] ?? 0) > 0;
 
-$page_title = 'Ad';
-$page_title = 'Жесткая сцепка для буксировки авто без 2-го водите';
+$is_favorite = false;
+if( $is_logged && $ad_found && f_db_table_exists('user_favorite') ){
+	$fx = f_db_select(
+		'SELECT 1 AS `x` FROM `user_favorite` WHERE `user_id` = ' . intval($me['_id']) . ' AND `ads_id` = ' . intval($_id_item) . ' LIMIT 1'
+	);
+	$is_favorite = !empty($fx);
+}
 
-$arr_breadcump = [['title'=>'All ads', 'domain'=>'']];
+$login_url = f_page_link('login');
+$pub_date_label = '';
+if( $ad_found && !empty($ad['publication_date']) ){
+	$pub_date_label = f_datetime_beauty($ad['publication_date']);
+}
+
+$arr_breadcump = [ [ 'title' => 'All ads', 'domain' => '' ] ];
 
 f_page_library_add('swiper');
-
-f_page_title_set( $page_title );
-
+f_page_title_set($page_title);
 
 ?>
 
@@ -280,10 +335,11 @@ f_page_title_set( $page_title );
 					<div class="swiper photo_swiper_ads_item">
 						<div class="swiper-wrapper">
 							<?php
-								for($i = 0; $i < 15; $i++) {
+								foreach( $ad_imgs as $im ){
+									$src = f_db_ads_img_public_url($im['jpg_path'] ?? '', $im['webp_path'] ?? '');
 							?>
 								<div class="swiper-slide">
-									<img class="img_ads_item" src="/public/ad_default.jpg" alt="Main Image 1">
+									<img class="img_ads_item" src="<?php f_echo_html($src); ?>" alt="">
 								</div>
 							<?php
 								}
@@ -307,10 +363,11 @@ f_page_title_set( $page_title );
 					<div class="swiper photo_swiper_thumbs_ads_item">
 						<div class="swiper-wrapper">
 							<?php
-								for($i = 0; $i < 15; $i++) {
+								foreach( $ad_imgs as $im ){
+									$src = f_db_ads_img_public_url($im['jpg_path'] ?? '', $im['webp_path'] ?? '');
 							?>
 								<div class="swiper-slide">
-									<img class="img_ads_item" src="/public/ad_default.jpg" alt="Main Image 1">
+									<img class="img_ads_item" src="<?php f_echo_html($src); ?>" alt="">
 								</div>
 							<?php
 								}
@@ -323,11 +380,15 @@ f_page_title_set( $page_title );
 			<div class="item_section">
 				<div class="label_user_item_ad"  style="font-size: var(--v_font_h4);"><?php f_translate_echo('Description'); ?></div>
 				<div class="description_full_item_ad">
-					Продам мазду птичку на полном ходу.заводится в любой мороз .торг будет только разумным людям за 700 800 покупайте себе десятки.на зимней резине.
+					<?php
+						echo $ad_found
+							? nl2br(htmlspecialchars($ad_description, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'))
+							: htmlspecialchars(f_translate('This ad is not available.'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+					?>
 				</div>
 				
 				<div class="box_info_full_item_ad">
-					<div class="id_full_item_ad">ID: 124123123</div>
+					<div class="id_full_item_ad">ID: <?php f_echo_html($_id_item ? (string)$_id_item : '—'); ?></div>
 					<div class="views_full_item_ad"><?php f_translate_echo('Views'); ?>: 123123</div>
 					<div class="btn_report_full_item_ad  btn"><i class="bi bi-flag  me-2"></i> <?php f_translate_echo('Report'); ?></div>
 				</div>
@@ -342,12 +403,17 @@ f_page_title_set( $page_title );
 							<i class="bi bi-person"></i>
 						</div>
 						<div>
-							<div class="name_user_full_item_ad">Dan</div>
-							<div class="date_user_full_item_ad">on Market365 from April 2024</div>
-							<div class="online_full_item_ad">Online November 17, 2024</div>
+							<div class="name_user_full_item_ad"><?php f_echo_html($seller_display); ?></div>
+							<?php if( is_array($seller_json) && !empty($seller_json['visit_date']) ){ ?>
+							<div class="online_full_item_ad"><?php f_translate_echo('Last visit'); ?>: <?php f_echo_html(f_datetime_beauty($seller_json['visit_date'])); ?></div>
+							<?php } ?>
 						</div>
 					</div>
-					<div class="btn btn-warning btn-lg  ms-auto  px-5"><?php f_translate_echo('Message'); ?></div>
+					<?php if( $can_message ){ ?>
+					<button type="button" class="btn btn-warning btn-lg ms-auto px-5" data-bs-toggle="modal" data-bs-target="#modal_write_seller"><?php f_translate_echo('Message'); ?></button>
+					<?php } elseif( !$is_logged && $ad_found ){ ?>
+					<a class="btn btn-warning btn-lg ms-auto px-5" href="<?php f_echo_html($login_url); ?>"><?php f_translate_echo('Message'); ?></a>
+					<?php } ?>
 				</div>
 			</div>
 			
@@ -358,9 +424,19 @@ f_page_title_set( $page_title );
 				
 				<div class="box_date_full_item_ad">
 					<div class="date_full_item_ad">
-						Published on November 20, 2024
+						<?php if( $pub_date_label !== '' ){ ?>
+							<?php f_translate_echo('Published'); ?>: <?php f_echo_html($pub_date_label); ?>
+						<?php } ?>
 					</div>
-					<div class="btn_favorite_full_item_ad   bi bi-heart"></div>
+					<div
+						class="btn_favorite_full_item_ad bi <?php echo $is_favorite ? 'bi-heart-fill text-danger' : 'bi-heart'; ?> <?php echo $ad_found ? 'js-ads-favorite-toggle' : ''; ?>"
+						role="button"
+						tabindex="0"
+						data-ads-id="<?php f_echo_html((string)$_id_item); ?>"
+						data-login-url="<?php f_echo_html($login_url); ?>"
+						data-logged="<?php echo $is_logged ? '1' : '0'; ?>"
+						aria-label="<?php f_translate_echo('Favorites'); ?>"
+					></div>
 				</div>
 				
 				<h1 class="title_full_item_ad">
@@ -368,10 +444,20 @@ f_page_title_set( $page_title );
 				</h1>
 				
 				<h2 class="price_full_item_ad">
-					1 000 $
+					<?php
+						if( $ad_found ){
+							f_echo_html(f_number_space($ad_price) . ' ' . $ad_currency);
+						}else{
+							f_echo_html('—');
+						}
+					?>
 				</h2>
 				
-				<div class="btn btn-warning btn-lg  w-100  mb-2"><?php f_translate_echo('Message'); ?></div>
+				<?php if( $can_message ){ ?>
+				<button type="button" class="btn btn-warning btn-lg w-100 mb-2" data-bs-toggle="modal" data-bs-target="#modal_write_seller"><?php f_translate_echo('Message'); ?></button>
+				<?php } elseif( !$is_logged && $ad_found ){ ?>
+				<a class="btn btn-warning btn-lg w-100 mb-2" href="<?php f_echo_html($login_url); ?>"><?php f_translate_echo('Message'); ?></a>
+				<?php } ?>
 				
 				<div class="btn btn-outline-primary btn-lg  w-100"><?php f_translate_echo('Show phone'); ?></div>
 				
@@ -388,9 +474,10 @@ f_page_title_set( $page_title );
 						<i class="bi bi-person"></i>
 					</div>
 					<div>
-						<div class="name_user_full_item_ad">Dan</div>
-						<div class="date_user_full_item_ad">on Market365 from April 2024</div>
-						<div class="online_full_item_ad">Online November 17, 2024</div>
+						<div class="name_user_full_item_ad"><?php f_echo_html($seller_display); ?></div>
+						<?php if( is_array($seller_json) && !empty($seller_json['visit_date']) ){ ?>
+						<div class="online_full_item_ad"><?php f_translate_echo('Last visit'); ?>: <?php f_echo_html(f_datetime_beauty($seller_json['visit_date'])); ?></div>
+						<?php } ?>
 					</div>
 				</div>
 				
@@ -414,8 +501,7 @@ f_page_title_set( $page_title );
 						<i class="bi bi-geo-alt"></i>
 					</div>
 					<div>
-						<div class="city_full_item_ad">London</div>
-						<div class="distance_full_item_ad">156 km away from you</div>
+						<div class="city_full_item_ad"><?php f_echo_html($city_label); ?></div>
 					</div>
 				</div>
 				
@@ -445,6 +531,25 @@ f_page_title_set( $page_title );
 	</div>
 </div>
 
+<?php if( $can_message && $ad_found ){ ?>
+<div class="modal fade" id="modal_write_seller" tabindex="-1" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title"><?php f_translate_echo('Message to the seller'); ?></h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<textarea class="form-control" id="ads_item_message_text" rows="4" placeholder="<?php f_translate_echo('Your message'); ?>"></textarea>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php f_translate_echo('Cancel'); ?></button>
+				<button type="button" class="btn btn-warning" id="ads_item_message_send"><?php f_translate_echo('Send'); ?></button>
+			</div>
+		</div>
+	</div>
+</div>
+<?php } ?>
 
 
 <!-- Initialize Swiper -->
@@ -521,6 +626,48 @@ document.addEventListener("DOMContentLoaded", () => {
             jq_btn_fullscreen_ads_photo.find("i").removeClass("bi-arrows-collapse").addClass("bi-arrows-fullscreen");
         }
     });
+
+	$(document).on('click', '.js-ads-favorite-toggle', function () {
+		var $el = $(this);
+		if ($el.data('logged') != '1') {
+			window.location.href = $el.data('login-url') || '/login';
+			return;
+		}
+		var aid = parseInt($el.data('ads-id'), 10);
+		if (!aid) {
+			return;
+		}
+		f_ajax('favorite', 'toggle', { ads_id: aid }, function (res) {
+			res = res.data;
+			if (res.error) {
+				return;
+			}
+			if (res.is_favorite) {
+				$el.removeClass('bi-heart').addClass('bi-heart-fill text-danger');
+			} else {
+				$el.removeClass('bi-heart-fill text-danger').addClass('bi-heart');
+			}
+		});
+	});
+
+	$('#ads_item_message_send').on('click', function () {
+		var aid = <?php echo json_encode(intval($_id_item)); ?>;
+		var text = $('#ads_item_message_text').val().trim();
+		if (!text || !aid) {
+			return;
+		}
+		f_ajax('chat', 'send', { ads_id: aid, message_text: text }, function (res) {
+			res = res.data;
+			if (res.error) {
+				return;
+			}
+			var modalEl = document.getElementById('modal_write_seller');
+			if (modalEl && window.bootstrap) {
+				bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+			}
+			window.location.href = <?php echo json_encode(f_page_link('user_messages')); ?>;
+		});
+	});
 
 });
 </script>

@@ -57,9 +57,13 @@
 | **`page/admin/translate_list.php`** | *нет проектного `/api/*`* | Сохранение: POST на **тот же URL страницы** (`type=save_all`), обновление БД через **`f_db_update_smart`**; ответ **`f_api_response_exit`**. |
 | **`page/auth/login.php`** и прочие auth | *нет* | Вход и регистрация — обычный POST формы на страницу, reCAPTCHA, **`f_db_get_user`**, cookie. |
 | **`page/info_item.php`** (about, terms, …) | *нет* | Только чтение таблицы **`info`**. |
-| **`page/landing.php`**, **`page/ads_category.php`**, **`page/ads_item.php`**, **`page/user/*.php`** (кроме `user_item`) | *как правило нет* | Данные с сервера в PHP при рендере; **`user_pays_add`** использует **Stripe.js** и отдельный endpoint **`create_payment_intent.php`** (не модуль в **`api/`**). |
+| **`page/ads_item.php`** | **`POST /api/chat/send`**, **`POST /api/favorite/toggle`** | Карточка объявления: данные из БД при рендере; первое сообщение продавцу из модального окна; переключение избранного без перезагрузки. |
+| **`page/user/user_messages.php`** | **`POST /api/chat/get_list`**, **`get_messages`**, **`send`** | Список диалогов и переписка; опрос **`get_messages`** раз в 8 с. |
+| **`page/user/user_favorites.php`** | **`POST /api/favorite/get_list`**, **`toggle`** | Сетка избранного; удаление через **`toggle`**. |
+| **`template/script.php`** | **`POST /api/chat/unread_count`** | Для ссылок с классом **`js-sync-chat-unread`**: обновление бейджа непрочитанных (интервал 45 с). |
+| **`page/landing.php`**, **`page/ads_category.php`**, **`page/user/*.php`** (кроме перечисленных выше) | *часто нет* | Данные с сервера в PHP при рендере; **`user_pays_add`** использует **Stripe.js** и отдельный endpoint **`create_payment_intent.php`** (не модуль в **`api/`**). |
 
-**Итог:** проектный REST-слой **`/api/...`** на страницах используется точечно; большая часть контента — **SSR в PHP** без AJAX.
+**Итог:** проектный REST-слой **`/api/...`** подключён для ленты объявлений, чатов, избранного и части форм; остальной контент — **SSR в PHP** и обычные POST форм.
 
 ---
 
@@ -90,8 +94,8 @@
 | **`/user/ads`** | `user_ads.php` | да | — |
 | **`/user/pays`** | `user_pays.php` | да | — |
 | **`/user/pays/add`** | `user_pays_add.php` | да | Stripe (внешний JS/API), не **`api/`** проекта |
-| **`/user/favorites`** | `user_favorites.php` | да | — |
-| **`/user/messages`** | `user_messages.php` | да | — |
+| **`/user/favorites`** | `user_favorites.php` | да | **`/api/favorite/get_list`**, **`/api/favorite/toggle`** |
+| **`/user/messages`** | `user_messages.php` | да | **`/api/chat/get_list`**, **`get_messages`**, **`send`** |
 | **`/user/notifications`** | `user_notifications.php` | да | — |
 | **`/user/settings`** | `user_settings.php` | да | **`/api/user/save`**, **`/api/upload/file`** |
 | **`/user/exit/...`** | `user_exit.php` | да | — |
@@ -112,7 +116,7 @@
 | **`/sitemap`**, **`/ads`**, **`/ads/category/...`** | `ads_category.php` | — | — |
 | **`/ads/create`** | `ads_create.php` | — | **`/api/ads/save`**, **`/api/upload/file`** |
 | **`/ads/promote/...`** | `ads_promote.php` | — | в коде страницы вызовов **`f_ajax`** не найдено |
-| **`/ads/...`** (карточка) | `ads_item.php` | да | — (карта: внешний Google Static Map в примере) |
+| **`/ads/...`** (карточка) | `ads_item.php` | да | **`/api/chat/send`**, **`/api/favorite/toggle`**; карта: iframe Google Maps по **`gps_point`** при наличии |
 
 ### Служебное
 

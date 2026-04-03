@@ -26,6 +26,12 @@
 | **`api/subscription.php`** | `edit` → `f_api_subscription_edit` | Обновление **`pdd_subscription`**: ветки для **admin** и **school** (активация, отмена, поля цен/дат). Вызывается **`f_get_pdd_category_arr()`** — в репозитории **не найдена**. |
 | | `create` → `f_api_subscription_create` | Только **admin**: пакетная вставка подписок, проверка **`ssid` === session_id()**, запись в **`pdd_pay`**. |
 | **`api/cron.php`** | `expired` → `f_api_cron_expired` | Вызов **`f_db_get_test_update_expired()`** и **`f_db_get_subscription_update_expired()`** — обновление просроченных сущностей. Предполагается вызов по cron (в комментарии пример URL). |
+| **`api/chat.php`** | `get_list` → `f_api_chat_get_list` | Список диалогов текущего пользователя (**`chat`** + **`ads`** + превью **`ads_img`**, последнее сообщение, **`unread_count`**). Только авторизованный пользователь. |
+| | `get_messages` → `f_api_chat_get_messages` | История **`chat_message`** по **`chat_id`**; проверка участия в чате; пометка входящих как **`is_read = 1`**. В **`data.chat`** — карточка объявления и ссылка. |
+| | `send` → `f_api_chat_send` | Отправка: либо **`chat_id`**, либо первое сообщение по **`ads_id`** (создание **`chat`**). Уведомление второй стороне через **`f_email_send`** (**`email_json['main']`**). |
+| | `unread_count` → `f_api_chat_unread_count` | Число непрочитанных входящих сообщений (для бейджа в шапке). |
+| **`api/favorite.php`** | `toggle` → `f_api_favorite_toggle` | Добавить/удалить запись в **`user_favorite`** по паре текущий пользователь + **`ads_id`**. |
+| | `get_list` → `f_api_favorite_get_list` | Список избранных объявлений в формате карточки (**`arr_item`** как у **`ads/get_list`**). |
 
 ---
 
@@ -61,6 +67,17 @@
 ### `api/cron.php`
 
 - Без явной авторизации в файле: любой, кто знает URL, может дернуть **`expired`** (стоит защитить секретом или IP на уровне веб-сервера).
+
+### `api/chat.php`
+
+- **Таблицы:** `chat`, `chat_message`, `ads`, `ads_img`, `user`.
+- **Почта:** `f_email_send` при каждой отправке сообщения — письмо адресату диалога (вторая сторона чата).
+- **Миграции:** `func/f_db_init.php` (миграции `005_chat_table`, `006_chat_message_table`).
+
+### `api/favorite.php`
+
+- **Таблицы:** `user_favorite`, `ads`, `ads_img`, `city`.
+- **Миграции:** `007_user_favorite_table` в **`f_db_init.php`**.
 
 ---
 
